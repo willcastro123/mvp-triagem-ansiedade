@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
-
 export interface HotmartWebhookData {
   event: string
   data: {
@@ -22,7 +20,9 @@ export interface HotmartWebhookData {
 }
 
 // Função helper para criar cliente Supabase em runtime
-function getSupabaseAdmin() {
+async function getSupabaseAdmin() {
+  const { createClient } = await import('@supabase/supabase-js')
+  
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -40,7 +40,7 @@ function getSupabaseAdmin() {
 
 export async function processHotmartPurchase(webhookData: HotmartWebhookData) {
   try {
-    const supabaseAdmin = getSupabaseAdmin()
+    const supabaseAdmin = await getSupabaseAdmin()
     const { buyer, purchase } = webhookData.data
 
     // Verifica se o pagamento foi aprovado

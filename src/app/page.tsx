@@ -422,8 +422,8 @@ export default function AnxietyApp() {
             <div className="border-t pt-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm text-muted-foreground line-through">De R$ 197,00</p>
-                  <p className="text-3xl font-bold text-green-600">R$ 97,00</p>
+                  <p className="text-sm text-muted-foreground line-through">De R$ 69,80</p>
+                  <p className="text-3xl font-bold text-green-600">R$ 34,90</p>
                   <p className="text-sm text-muted-foreground">Oferta por tempo limitado</p>
                 </div>
                 <div className="text-right">
