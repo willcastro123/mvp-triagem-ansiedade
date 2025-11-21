@@ -10,9 +10,8 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { createUserProfile, sendWelcomeEmail } from '@/lib/supabase'
 import { toast } from 'sonner'
 
 type AnxietyType = 'social' | 'panic' | 'general' | null
@@ -138,7 +137,6 @@ export default function AnxietyApp() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
   const [currentNotification, setCurrentNotification] = useState(0)
   const [showNotification, setShowNotification] = useState(false)
-  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -201,83 +199,9 @@ export default function AnxietyApp() {
     setShowResult(true)
   }
 
-  const handleCreateAccount = async () => {
-    if (!userProfile) return
-
-    setIsCreatingAccount(true)
-
-    try {
-      // Gera senha temporária
-      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase()
-
-      // Verifica se o email já existe antes de criar
-      const { createClient } = await import('@supabase/supabase-js')
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-
-      // Verifica se já existe um perfil com este email
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('user_profiles')
-        .select('email')
-        .eq('email', userProfile.email)
-        .single()
-
-      if (existingProfile) {
-        toast.error('E-mail já cadastrado', {
-          description: 'Este e-mail já possui uma conta. Faça login para continuar.'
-        })
-        setIsCreatingAccount(false)
-        return
-      }
-
-      // Cria perfil no Supabase
-      const newProfile = await createUserProfile({
-        name: userProfile.name,
-        email: userProfile.email,
-        phone: userProfile.phone,
-        age: userProfile.age,
-        gender: userProfile.gender,
-        city: userProfile.city,
-        anxiety_type: userProfile.anxietyType,
-        triage_completed: true,
-        is_premium: true, // Ativa premium ao criar conta via pagamento
-        password: tempPassword,
-        points: 0
-      })
-
-      // Envia email de boas-vindas com credenciais
-      await sendWelcomeEmail(userProfile.email, tempPassword, userProfile.name)
-
-      toast.success('Conta criada com sucesso!', {
-        description: 'Verifique seu e-mail para acessar suas credenciais.'
-      })
-
-      setShowPurchaseModal(false)
-
-      // Atualiza o perfil local
-      setUserProfile({
-        ...userProfile,
-        isPremium: true
-      })
-
-    } catch (error: any) {
-      console.error('Erro ao criar conta:', error)
-      
-      // Tratamento específico para erro de duplicação
-      if (error.code === '23505' || error.message?.includes('duplicate key')) {
-        toast.error('E-mail já cadastrado', {
-          description: 'Este e-mail já possui uma conta. Faça login para continuar.'
-        })
-      } else {
-        toast.error('Erro ao criar conta', {
-          description: error.message || 'Tente novamente mais tarde.'
-        })
-      }
-    } finally {
-      setIsCreatingAccount(false)
-    }
+  const handleHotmartCheckout = () => {
+    // Redireciona para o link de checkout da Hotmart
+    window.open('https://pay.hotmart.com/P103056552X?sck=HOTMART_PRODUCT_PAGE&off=xfu3cyhr&hotfeature=32&_gl=1*1m9tg0l*_ga*MTE0NzcyODYwNS4xNzYzNzE3MDM5*_ga_GQH2V1F11Q*czE3NjM3MTcwMzckbzEkZzEkdDE3NjM3MjA1MzQkajYwJGwwJGgw*_gcl_au*MTI0NDM4ODg1MC4xNzYzNzE3MDM5LjE1Mzg3OTcyMDMuMTc2MzcxNzA4MS4xNzYzNzIwMzY1*FPAU*MTI0NDM4ODg1MC4xNzYzNzE3MDM5&bid=1763720540240', '_blank')
   }
 
   const getAnxietyTypeInfo = (type: AnxietyType) => {
@@ -511,16 +435,16 @@ export default function AnxietyApp() {
               </div>
 
               <Button 
-                onClick={() => setShowPurchaseModal(true)}
+                onClick={handleHotmartCheckout}
                 className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-lg py-6"
               >
-                <ShoppingCart className="w-5 h-5 mr-2" />
+                <ArrowRight className="w-5 h-5 mr-2" />
                 Começar Tratamento Agora
               </Button>
 
               <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
                 <Shield className="w-4 h-4" />
-                <span>Garantia de 7 dias - 100% do seu dinheiro de volta</span>
+                <span>Garantia de 7 dias - Satisfação garantida</span>
               </div>
             </div>
           </CardContent>
@@ -652,84 +576,6 @@ export default function AnxietyApp() {
           renderResult()
         )}
       </main>
-
-      {/* Purchase Modal */}
-      <Dialog open={showPurchaseModal} onOpenChange={setShowPurchaseModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Finalizar Compra</DialogTitle>
-            <DialogDescription>
-              Complete seus dados para acessar o tratamento personalizado
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-semibold">Plano Premium</span>
-                <span className="text-2xl font-bold text-green-600">R$ 97,00</span>
-              </div>
-              <p className="text-sm text-muted-foreground">Acesso vitalício ao tratamento completo</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Método de Pagamento</Label>
-              <Tabs defaultValue="pix" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="pix">PIX</TabsTrigger>
-                  <TabsTrigger value="card">Cartão</TabsTrigger>
-                </TabsList>
-                <TabsContent value="pix" className="space-y-4">
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Após clicar em confirmar, você receberá o QR Code do PIX por e-mail
-                    </AlertDescription>
-                  </Alert>
-                </TabsContent>
-                <TabsContent value="card" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Número do Cartão</Label>
-                    <Input placeholder="0000 0000 0000 0000" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Validade</Label>
-                      <Input placeholder="MM/AA" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>CVV</Label>
-                      <Input placeholder="000" />
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            <Button 
-              onClick={handleCreateAccount}
-              disabled={isCreatingAccount}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-            >
-              {isCreatingAccount ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Criando conta...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Confirmar Pagamento
-                </>
-              )}
-            </Button>
-
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <Shield className="w-3 h-3" />
-              <span>Pagamento 100% seguro e criptografado</span>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Footer */}
       <footer className="border-t mt-16 py-8 bg-white/50 dark:bg-gray-900/50">
