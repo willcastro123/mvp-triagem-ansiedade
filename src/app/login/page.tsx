@@ -43,12 +43,23 @@ export default function LoginPage() {
         .insert([{
           email,
           password,
-          created_at: new Date().toISOString()
+          name: email.split('@')[0],
+          phone: '',
+          age: '',
+          gender: '',
+          city: '',
+          anxiety_type: null,
+          triage_completed: false,
+          is_premium: false,
+          points: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }])
         .select()
         .single()
 
       if (error) {
+        console.error('Erro ao criar conta:', error)
         throw error
       }
 
@@ -66,7 +77,11 @@ export default function LoginPage() {
       localStorage.setItem('user', JSON.stringify(newUser))
 
       toast.success('Conta criada com sucesso!')
-      router.push('/dashboard')
+      
+      // Aguarda um pouco antes de redirecionar
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 500)
 
     } catch (error) {
       console.error('Erro ao criar conta:', error)
@@ -80,9 +95,17 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!email || !password) {
+      toast.error('Preencha todos os campos')
+      return
+    }
+
     setIsLoading(true)
 
     try {
+      console.log('Tentando fazer login com:', email)
+
       // Busca usuário no banco
       const { data: user, error } = await supabase
         .from('user_profiles')
@@ -91,7 +114,10 @@ export default function LoginPage() {
         .eq('password', password)
         .single()
 
+      console.log('Resultado da busca:', { user, error })
+
       if (error || !user) {
+        console.error('Erro ao buscar usuário:', error)
         toast.error('Credenciais inválidas', {
           description: 'E-mail ou senha incorretos.'
         })
@@ -113,7 +139,11 @@ export default function LoginPage() {
       localStorage.setItem('user', JSON.stringify(user))
 
       toast.success('Login realizado com sucesso!')
-      router.push('/dashboard')
+      
+      // Aguarda um pouco antes de redirecionar
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 500)
 
     } catch (error) {
       console.error('Erro ao fazer login:', error)
@@ -155,6 +185,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -171,6 +202,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -207,6 +239,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setIsRegisterMode(!isRegisterMode)}
                 className="text-sm text-purple-600 hover:underline"
+                disabled={isLoading}
               >
                 {isRegisterMode ? 'Já tem uma conta? Faça login' : 'Não tem conta? Registre-se'}
               </button>
@@ -216,6 +249,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => router.push('/')}
                   className="text-purple-600 hover:underline"
+                  disabled={isLoading}
                 >
                   Voltar para a página inicial
                 </button>
