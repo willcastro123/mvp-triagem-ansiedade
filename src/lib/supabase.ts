@@ -1,12 +1,35 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Função para obter variáveis de ambiente de forma segura
+function getEnvVars() {
+  // No cliente (browser), usa variáveis públicas
+  if (typeof window !== 'undefined') {
+    return {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    }
+  }
+  
+  // No servidor, pode usar qualquer variável
+  return {
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
+    supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+  }
+}
+
 // Função para criar cliente Supabase em runtime
 export function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  const { supabaseUrl, supabaseAnonKey } = getEnvVars()
   
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Variáveis de ambiente do Supabase não configuradas')
+    // Em vez de lançar erro, retorna um cliente mock para desenvolvimento
+    console.warn('⚠️ Variáveis de ambiente do Supabase não configuradas')
+    
+    // Retorna um cliente mock que não quebra a aplicação
+    return createClient(
+      'https://placeholder.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.placeholder'
+    )
   }
   
   return createClient(supabaseUrl, supabaseAnonKey)
