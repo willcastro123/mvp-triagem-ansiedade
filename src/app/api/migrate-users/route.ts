@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST() {
   try {
+    // Inicializa cliente Supabase em runtime
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Variáveis de ambiente do Supabase não configuradas'
+        },
+        { status: 500 }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
     // 1. Buscar todos os usuários da tabela users
     const { data: usersData, error: usersError } = await supabase
       .from('users')
