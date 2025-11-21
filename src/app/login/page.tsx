@@ -27,7 +27,7 @@ export default function LoginPage() {
         .from('user_profiles')
         .select('*')
         .eq('email', email)
-        .single()
+        .maybeSingle()
 
       if (existingUser) {
         toast.error('E-mail já cadastrado', {
@@ -64,14 +64,18 @@ export default function LoginPage() {
       }
 
       // Registra atividade de criação de conta
-      await supabase
-        .from('user_activity_logs')
-        .insert([{
-          user_id: newUser.id,
-          activity_type: 'register',
-          activity_description: 'Usuário criou uma nova conta',
-          metadata: { timestamp: new Date().toISOString() }
-        }])
+      try {
+        await supabase
+          .from('user_activity_logs')
+          .insert([{
+            user_id: newUser.id,
+            activity_type: 'register',
+            activity_description: 'Usuário criou uma nova conta',
+            metadata: { timestamp: new Date().toISOString() }
+          }])
+      } catch (logError) {
+        console.warn('Erro ao registrar atividade (não crítico):', logError)
+      }
 
       // Salva usuário no localStorage
       localStorage.setItem('user', JSON.stringify(newUser))
@@ -104,7 +108,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      console.log('Tentando fazer login com:', email)
+      console.log('🔐 Tentando fazer login com:', email)
 
       // Busca usuário no banco
       const { data: user, error } = await supabase
@@ -112,12 +116,25 @@ export default function LoginPage() {
         .select('*')
         .eq('email', email)
         .eq('password', password)
-        .single()
+        .maybeSingle()
 
-      console.log('Resultado da busca:', { user, error })
+      console.log('📊 Resultado da busca:', { 
+        encontrou: !!user, 
+        erro: error?.message,
+        detalhes: error 
+      })
 
-      if (error || !user) {
-        console.error('Erro ao buscar usuário:', error)
+      if (error) {
+        console.error('❌ Erro ao buscar usuário:', error)
+        toast.error('Erro ao conectar com o banco de dados', {
+          description: error.message || 'Tente novamente mais tarde.'
+        })
+        setIsLoading(false)
+        return
+      }
+
+      if (!user) {
+        console.warn('⚠️ Usuário não encontrado ou senha incorreta')
         toast.error('Credenciais inválidas', {
           description: 'E-mail ou senha incorretos.'
         })
@@ -125,30 +142,40 @@ export default function LoginPage() {
         return
       }
 
-      // Registra atividade de login
-      await supabase
-        .from('user_activity_logs')
-        .insert([{
-          user_id: user.id,
-          activity_type: 'login',
-          activity_description: 'Usuário fez login no sistema',
-          metadata: { timestamp: new Date().toISOString() }
-        }])
+      console.log('✅ Login bem-sucedido! Usuário:', user.email)
+
+      // Registra atividade de login (não crítico)
+      try {
+        await supabase
+          .from('user_activity_logs')
+          .insert([{
+            user_id: user.id,
+            activity_type: 'login',
+            activity_description: 'Usuário fez login no sistema',
+            metadata: { timestamp: new Date().toISOString() }
+          }])
+      } catch (logError) {
+        console.warn('⚠️ Erro ao registrar atividade (não crítico):', logError)
+      }
 
       // Salva usuário no localStorage
       localStorage.setItem('user', JSON.stringify(user))
+      console.log('💾 Usuário salvo no localStorage')
 
-      toast.success('Login realizado com sucesso!')
+      toast.success('Login realizado com sucesso!', {
+        description: `Bem-vindo, ${user.name}!`
+      })
       
       // Aguarda um pouco antes de redirecionar
+      console.log('🔄 Redirecionando para dashboard...')
       setTimeout(() => {
         router.push('/dashboard')
       }, 500)
 
     } catch (error) {
-      console.error('Erro ao fazer login:', error)
+      console.error('❌ Erro inesperado ao fazer login:', error)
       toast.error('Erro ao fazer login', {
-        description: 'Tente novamente mais tarde.'
+        description: 'Ocorreu um erro inesperado. Tente novamente.'
       })
     } finally {
       setIsLoading(false)

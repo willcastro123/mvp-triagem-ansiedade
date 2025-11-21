@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Criado com a Lasy",
-  description: "Projeto criado com Lasy AI",
+  title: "ZentiaMind - Apoio à Ansiedade",
+  description: "Seu companheiro de apoio para gerenciar ansiedade com triagem personalizada e ferramentas de crise",
 };
 
 export default function RootLayout({
