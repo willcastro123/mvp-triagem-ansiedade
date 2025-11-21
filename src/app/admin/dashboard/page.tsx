@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -108,6 +107,9 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
+      // Importar supabase dinamicamente apenas no cliente
+      const { supabase } = await import('@/lib/supabase');
+
       // Carregar usuários da tabela user_profiles
       const { data: usersData, error: usersError } = await supabase
         .from('user_profiles')
@@ -206,6 +208,8 @@ export default function AdminDashboard() {
         return;
       }
 
+      const { supabase } = await import('@/lib/supabase');
+
       // Inserir diretamente na tabela user_profiles
       const { data, error } = await supabase
         .from('user_profiles')
@@ -250,6 +254,8 @@ export default function AdminDashboard() {
     if (!selectedUser) return;
 
     try {
+      const { supabase } = await import('@/lib/supabase');
+
       const { error } = await supabase
         .from('user_profiles')
         .update({
@@ -278,6 +284,8 @@ export default function AdminDashboard() {
     }
 
     try {
+      const { supabase } = await import('@/lib/supabase');
+
       const { error } = await supabase
         .from('user_profiles')
         .delete()
@@ -311,6 +319,8 @@ export default function AdminDashboard() {
         alert('Preencha todos os campos do doutor');
         return;
       }
+
+      const { supabase } = await import('@/lib/supabase');
 
       // Criar tabela doctors se não existir
       await supabase.rpc('create_doctors_table_if_not_exists');

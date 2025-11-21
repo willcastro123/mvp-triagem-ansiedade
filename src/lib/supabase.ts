@@ -1,10 +1,28 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Variáveis de ambiente - sem validação no build time
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+// Função para criar cliente Supabase em runtime
+export function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Variáveis de ambiente do Supabase não configuradas')
+  }
+  
+  return createClient(supabaseUrl, supabaseAnonKey)
+}
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Cliente lazy - só inicializa quando usado
+let supabaseInstance: ReturnType<typeof createClient> | null = null
+
+export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
+  get(target, prop) {
+    if (!supabaseInstance) {
+      supabaseInstance = getSupabaseClient()
+    }
+    return (supabaseInstance as any)[prop]
+  }
+})
 
 // Types
 export interface UserProfile {
@@ -110,7 +128,8 @@ function isValidUUID(uuid: string): boolean {
 
 // User Profile Functions
 export async function createUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('user_profiles')
     .insert([profile])
     .select()
@@ -121,7 +140,8 @@ export async function createUserProfile(profile: Omit<UserProfile, 'id' | 'creat
 }
 
 export async function getUserProfile(email: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('user_profiles')
     .select('*')
     .eq('email', email)
@@ -137,7 +157,8 @@ export async function updateUserProfile(id: string, updates: Partial<UserProfile
     throw new Error('ID de usuário inválido. Por favor, faça login novamente.')
   }
 
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('user_profiles')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -154,6 +175,8 @@ export async function deleteUserAccount(userId: string) {
     throw new Error('Não é possível deletar conta de usuário demo. Por favor, crie uma conta real primeiro.')
   }
 
+  const client = getSupabaseClient()
+  
   // Deleta todos os dados relacionados ao usuário
   const tables = [
     'chat_messages',
@@ -167,7 +190,7 @@ export async function deleteUserAccount(userId: string) {
   ]
 
   for (const table of tables) {
-    const { error } = await supabase
+    const { error } = await client
       .from(table)
       .delete()
       .eq(table === 'user_profiles' ? 'id' : 'user_id', userId)
@@ -187,7 +210,8 @@ export async function cancelSubscription(userId: string) {
     throw new Error('Não é possível cancelar assinatura de usuário demo. Por favor, faça login com uma conta real.')
   }
 
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('user_profiles')
     .update({ 
       is_premium: false,
@@ -203,7 +227,8 @@ export async function cancelSubscription(userId: string) {
 
 // Medications Functions
 export async function getMedications(userId: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('medications')
     .select('*')
     .eq('user_id', userId)
@@ -214,7 +239,8 @@ export async function getMedications(userId: string) {
 }
 
 export async function createMedication(medication: Omit<Medication, 'id' | 'created_at'>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('medications')
     .insert([medication])
     .select()
@@ -225,7 +251,8 @@ export async function createMedication(medication: Omit<Medication, 'id' | 'crea
 }
 
 export async function deleteMedication(id: string) {
-  const { error } = await supabase
+  const client = getSupabaseClient()
+  const { error } = await client
     .from('medications')
     .delete()
     .eq('id', id)
@@ -235,7 +262,8 @@ export async function deleteMedication(id: string) {
 
 // Habits Functions
 export async function getHabits(userId: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('habits')
     .select('*')
     .eq('user_id', userId)
@@ -246,7 +274,8 @@ export async function getHabits(userId: string) {
 }
 
 export async function createHabit(habit: Omit<Habit, 'id' | 'created_at'>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('habits')
     .insert([habit])
     .select()
@@ -257,7 +286,8 @@ export async function createHabit(habit: Omit<Habit, 'id' | 'created_at'>) {
 }
 
 export async function updateHabit(id: string, updates: Partial<Habit>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('habits')
     .update(updates)
     .eq('id', id)
@@ -269,7 +299,8 @@ export async function updateHabit(id: string, updates: Partial<Habit>) {
 }
 
 export async function deleteHabit(id: string) {
-  const { error } = await supabase
+  const client = getSupabaseClient()
+  const { error } = await client
     .from('habits')
     .delete()
     .eq('id', id)
@@ -279,7 +310,8 @@ export async function deleteHabit(id: string) {
 
 // Tasks Functions
 export async function getTasks(userId: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('tasks')
     .select('*')
     .eq('user_id', userId)
@@ -290,7 +322,8 @@ export async function getTasks(userId: string) {
 }
 
 export async function createTask(task: Omit<Task, 'id' | 'created_at'>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('tasks')
     .insert([task])
     .select()
@@ -301,7 +334,8 @@ export async function createTask(task: Omit<Task, 'id' | 'created_at'>) {
 }
 
 export async function updateTask(id: string, updates: Partial<Task>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('tasks')
     .update(updates)
     .eq('id', id)
@@ -313,7 +347,8 @@ export async function updateTask(id: string, updates: Partial<Task>) {
 }
 
 export async function deleteTask(id: string) {
-  const { error } = await supabase
+  const client = getSupabaseClient()
+  const { error } = await client
     .from('tasks')
     .delete()
     .eq('id', id)
@@ -323,7 +358,8 @@ export async function deleteTask(id: string) {
 
 // Mood Entries Functions
 export async function getMoodEntries(userId: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('mood_entries')
     .select('*')
     .eq('user_id', userId)
@@ -334,7 +370,8 @@ export async function getMoodEntries(userId: string) {
 }
 
 export async function createMoodEntry(entry: Omit<MoodEntry, 'id' | 'created_at'>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('mood_entries')
     .insert([entry])
     .select()
@@ -346,7 +383,8 @@ export async function createMoodEntry(entry: Omit<MoodEntry, 'id' | 'created_at'
 
 // Exposure Steps Functions
 export async function getExposureSteps(userId: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('exposure_steps')
     .select('*')
     .eq('user_id', userId)
@@ -357,7 +395,8 @@ export async function getExposureSteps(userId: string) {
 }
 
 export async function createExposureStep(step: Omit<ExposureStep, 'id' | 'created_at'>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('exposure_steps')
     .insert([step])
     .select()
@@ -368,7 +407,8 @@ export async function createExposureStep(step: Omit<ExposureStep, 'id' | 'create
 }
 
 export async function updateExposureStep(id: string, updates: Partial<ExposureStep>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('exposure_steps')
     .update(updates)
     .eq('id', id)
@@ -380,7 +420,8 @@ export async function updateExposureStep(id: string, updates: Partial<ExposureSt
 }
 
 export async function deleteExposureStep(id: string) {
-  const { error } = await supabase
+  const client = getSupabaseClient()
+  const { error } = await client
     .from('exposure_steps')
     .delete()
     .eq('id', id)
@@ -390,7 +431,8 @@ export async function deleteExposureStep(id: string) {
 
 // Articles Functions
 export async function getArticles(userId: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('articles')
     .select('*')
     .eq('user_id', userId)
@@ -401,7 +443,8 @@ export async function getArticles(userId: string) {
 }
 
 export async function updateArticle(id: string, updates: Partial<Article>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('articles')
     .update(updates)
     .eq('id', id)
@@ -414,7 +457,8 @@ export async function updateArticle(id: string, updates: Partial<Article>) {
 
 // Chat Messages Functions
 export async function getChatMessages(userId: string) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('chat_messages')
     .select('*')
     .eq('user_id', userId)
@@ -425,7 +469,8 @@ export async function getChatMessages(userId: string) {
 }
 
 export async function createChatMessage(message: Omit<ChatMessage, 'id' | 'created_at'>) {
-  const { data, error } = await supabase
+  const client = getSupabaseClient()
+  const { data, error } = await client
     .from('chat_messages')
     .insert([message])
     .select()
@@ -436,8 +481,10 @@ export async function createChatMessage(message: Omit<ChatMessage, 'id' | 'creat
 }
 
 export async function sendWelcomeEmail(email: string, password: string, name: string) {
+  const client = getSupabaseClient()
+  
   // Chama Edge Function do Supabase para enviar email
-  const { data, error } = await supabase.functions.invoke('send-welcome-email', {
+  const { data, error } = await client.functions.invoke('send-welcome-email', {
     body: {
       email,
       password,
