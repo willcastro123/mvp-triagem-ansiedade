@@ -33,8 +33,8 @@ export default function DashboardPage() {
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null)
   const [showDoctorSell, setShowDoctorSell] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
-  const [showPWAPrompt, setShowPWAPrompt] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [isInstalled, setIsInstalled] = useState(false)
   const [sellData, setSellData] = useState({
     originalPrice: 100,
     discountedPrice: 90,
@@ -57,14 +57,35 @@ export default function DashboardPage() {
     // Verifica se usuário é doutor
     checkIfDoctor(userData.id)
 
+    // Registra o Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker registrado com sucesso:', registration)
+        })
+        .catch((error) => {
+          console.log('Erro ao registrar Service Worker:', error)
+        })
+    }
+
+    // Verifica se o app já está instalado
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true)
+    }
+
     // Listener para evento de instalação PWA
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      setShowPWAPrompt(true)
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+    // Listener para detectar quando o app é instalado
+    window.addEventListener('appinstalled', () => {
+      setIsInstalled(true)
+      toast.success('App instalado com sucesso! 🎉')
+    })
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
@@ -88,20 +109,47 @@ export default function DashboardPage() {
   }
 
   const handleInstallPWA = async () => {
-    if (!deferredPrompt) {
-      toast.info('Para instalar o app, use o menu do navegador')
+    if (isInstalled) {
+      toast.info('App já está instalado! ✅')
       return
     }
 
+    if (!deferredPrompt) {
+      // Instruções para instalação manual
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+      const isAndroid = /Android/.test(navigator.userAgent)
+      
+      if (isIOS) {
+        toast.info('Para instalar no iOS: toque no ícone de compartilhar e selecione "Adicionar à Tela de Início"', {
+          duration: 6000
+        })
+      } else if (isAndroid) {
+        toast.info('Para instalar no Android: abra o menu do navegador (⋮) e selecione "Instalar app" ou "Adicionar à tela inicial"', {
+          duration: 6000
+        })
+      } else {
+        toast.info('Para instalar: use o menu do navegador e selecione "Instalar aplicativo"', {
+          duration: 5000
+        })
+      }
+      return
+    }
+
+    // Mostra o prompt de instalação
     deferredPrompt.prompt()
+    
+    // Aguarda a escolha do usuário
     const { outcome } = await deferredPrompt.userChoice
     
     if (outcome === 'accepted') {
-      toast.success('App instalado com sucesso! 🎉')
+      toast.success('Instalando app... 🚀')
+      setIsInstalled(true)
+    } else {
+      toast.info('Instalação cancelada')
     }
     
+    // Limpa o prompt
     setDeferredPrompt(null)
-    setShowPWAPrompt(false)
   }
 
   const handleLogout = () => {
@@ -349,10 +397,10 @@ export default function DashboardPage() {
                 variant="default"
                 size="sm"
                 onClick={handleInstallPWA}
-                className="w-full gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                className={`w-full gap-2 ${isInstalled ? 'bg-gray-500 hover:bg-gray-600' : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600'}`}
               >
                 <Download className="w-4 h-4" />
-                Instalar App
+                {isInstalled ? 'App Instalado ✓' : 'Instalar App'}
               </Button>
               {doctorInfo && (
                 <Button
