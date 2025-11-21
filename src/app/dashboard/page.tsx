@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard } from 'lucide-react'
+import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -33,6 +33,8 @@ export default function DashboardPage() {
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null)
   const [showDoctorSell, setShowDoctorSell] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [showPWAPrompt, setShowPWAPrompt] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [sellData, setSellData] = useState({
     originalPrice: 100,
     discountedPrice: 90,
@@ -54,6 +56,19 @@ export default function DashboardPage() {
 
     // Verifica se usuário é doutor
     checkIfDoctor(userData.id)
+
+    // Listener para evento de instalação PWA
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowPWAPrompt(true)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }
   }, [router])
 
   const checkIfDoctor = async (userId: string) => {
@@ -70,6 +85,23 @@ export default function DashboardPage() {
     } catch (error) {
       console.log('Usuário não é doutor')
     }
+  }
+
+  const handleInstallPWA = async () => {
+    if (!deferredPrompt) {
+      toast.info('Para instalar o app, use o menu do navegador')
+      return
+    }
+
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    
+    if (outcome === 'accepted') {
+      toast.success('App instalado com sucesso! 🎉')
+    }
+    
+    setDeferredPrompt(null)
+    setShowPWAPrompt(false)
   }
 
   const handleLogout = () => {
@@ -313,6 +345,15 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleInstallPWA}
+                className="w-full gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              >
+                <Download className="w-4 h-4" />
+                Instalar App
+              </Button>
               {doctorInfo && (
                 <Button
                   variant="outline"

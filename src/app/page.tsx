@@ -549,7 +549,11 @@ export default function AnxietyApp() {
                 <LogIn className="w-4 h-4" />
                 <span className="hidden sm:inline">Login</span>
               </Button>
-              <Button variant="outline" className="gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => window.open('https://www.instagram.com/zentiamind/', '_blank')}
+              >
                 <Phone className="w-4 h-4" />
                 <span className="hidden sm:inline">Suporte</span>
               </Button>
@@ -580,7 +584,7 @@ export default function AnxietyApp() {
       {/* Footer */}
       <footer className="border-t mt-16 py-8 bg-white/50 dark:bg-gray-900/50">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2024 ZentiaMind. Todos os direitos reservados.</p>
+          <p>© 2025 ZentiaMind. Todos os direitos reservados.</p>
           <p className="mt-2">Este não é um substituto para tratamento médico profissional.</p>
         </div>
       </footer>
