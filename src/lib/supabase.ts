@@ -1,8 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Usa as variáveis de ambiente ou valores padrão para desenvolvimento
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yugirwqimgpcxoqlltbc.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1Z2lyd3FpbWdwY3hvcWxsdGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc1NjY5NTAsImV4cCI6MjA1MzE0Mjk1MH0.OJzjHvqkDlhNxZYGPkZFHAOWLqJvxYPnWZnGGjQPBhA'
+// IMPORTANTE: Variáveis de ambiente devem estar configuradas no Vercel
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Variáveis de ambiente do Supabase não configuradas. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no Vercel.')
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 

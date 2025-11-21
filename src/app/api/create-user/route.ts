@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Validação das variáveis de ambiente
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yugirwqimgpcxoqlltbc.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1Z2lyd3FpbWdwY3hvcWxsdGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc1NjY5NTAsImV4cCI6MjA1MzE0Mjk1MH0.OJzjHvqkDlhNxZYGPkZFHAOWLqJvxYPnWZnGGjQPBhA';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Variáveis de ambiente do Supabase não configuradas. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY (ou SUPABASE_SERVICE_ROLE_KEY) no Vercel.');
+}
 
 // Cliente Supabase com service role (bypassa RLS)
 const supabaseAdmin = createClient(
