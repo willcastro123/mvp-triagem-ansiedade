@@ -256,14 +256,21 @@ export default function AdminDashboard() {
     try {
       const { supabase } = await import('@/lib/supabase');
 
+      const updateData: any = {
+        name: formData.name,
+        city: formData.city,
+        anxiety_type: formData.anxiety_type,
+        is_premium: formData.is_premium
+      };
+
+      // Se uma nova senha foi fornecida, incluí-la na atualização
+      if (formData.password.trim()) {
+        updateData.password = formData.password;
+      }
+
       const { error } = await supabase
         .from('user_profiles')
-        .update({
-          name: formData.name,
-          city: formData.city,
-          anxiety_type: formData.anxiety_type,
-          is_premium: formData.is_premium
-        })
+        .update(updateData)
         .eq('id', selectedUser.id);
 
       if (error) throw error;
@@ -757,6 +764,17 @@ export default function AdminDashboard() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="bg-slate-900 border-purple-500/20 text-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_password" className="text-gray-300">Nova Senha (deixe em branco para manter a atual)</Label>
+              <Input
+                id="edit_password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="bg-slate-900 border-purple-500/20 text-white"
+                placeholder="Digite a nova senha"
               />
             </div>
             <div>

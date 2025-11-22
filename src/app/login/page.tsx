@@ -262,15 +262,7 @@ export default function LoginPage() {
             </Button>
 
             <div className="text-center space-y-2">
-              <button
-                type="button"
-                onClick={() => setIsRegisterMode(!isRegisterMode)}
-                className="text-sm text-purple-600 hover:underline"
-                disabled={isLoading}
-              >
-                {isRegisterMode ? 'Já tem uma conta? Faça login' : 'Não tem conta? Registre-se'}
-              </button>
-              
+
               <div className="text-sm text-muted-foreground">
                 <button
                   type="button"
