@@ -1322,7 +1322,40 @@ export default function DashboardPage() {
                   </div>
                 )}
                 
-
+                {doctorInfo && (
+                  <div className="mt-4 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <h3 className="font-semibold text-purple-900 dark:text-purple-100">Painel do Doutor</h3>
+                    </div>
+                    <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
+                      {doctorInfo.specialty} - {doctorInfo.crm}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => setShowDoctorPanel(true)}
+                        className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                      >
+                        <Shield className="w-4 h-4" />
+                        Acessar Painel
+                      </Button>
+                      <Button
+                        onClick={openDoctorSell}
+                        className="gap-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        Vender Acesso
+                      </Button>
+                      <Button
+                        onClick={() => setShowDoctorInfoModal(true)}
+                        className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                      >
+                        <User className="w-4 h-4" />
+                        Meus Dados
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Stats Cards */}

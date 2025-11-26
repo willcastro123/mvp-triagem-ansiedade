@@ -31,10 +31,6 @@ interface Patient {
   name: string
   email: string
   phone?: string
-  city?: string
-  anxiety_type?: string
-  is_premium?: boolean
-  access_code?: string
 }
 
 export default function SchedulingPage() {
@@ -94,7 +90,7 @@ export default function SchedulingPage() {
 
       setIsLoading(false)
       loadAppointments(userId)
-      loadPatients(data.id) // Passa o doctor.id em vez de user_id
+      loadPatients(userId)
     } catch (error) {
       console.error('Erro ao verificar doutor:', error)
       router.push('/dashboard')
@@ -133,39 +129,23 @@ export default function SchedulingPage() {
     }
   }
 
-  const loadPatients = async (doctorId: string) => {
+  const loadPatients = async (doctorUserId: string) => {
     try {
-      // Buscar pacientes vinculados ao doutor através da tabela doctor_patients
-      const { data: doctorPatientsData, error: doctorPatientsError } = await supabase
-        .from('doctor_patients')
-        .select('patient_id')
-        .eq('doctor_id', doctorId)
+      const { data, error } = await supabase
+        .from('doctor_patient_access')
+        .select(`
+          patient_id,
+          user_profiles!doctor_patient_access_patient_id_fkey (
+            id,
+            name,
+            email,
+            phone
+          )
+        `)
+        .eq('doctor_user_id', doctorUserId)
 
-      if (doctorPatientsError) {
-        console.error('Erro ao carregar vínculos doutor-paciente:', doctorPatientsError)
-        return
-      }
-
-      if (!doctorPatientsData || doctorPatientsData.length === 0) {
-        setPatients([])
-        return
-      }
-
-      // Extrair IDs dos pacientes
-      const patientIds = doctorPatientsData.map((dp: any) => dp.patient_id)
-
-      // Buscar dados completos dos pacientes da tabela user_profiles
-      const { data: patientsData, error: patientsError } = await supabase
-        .from('user_profiles')
-        .select('id, name, email, phone, city, anxiety_type, is_premium, access_code')
-        .in('id', patientIds)
-
-      if (patientsError) {
-        console.error('Erro ao carregar dados dos pacientes:', patientsError)
-        return
-      }
-
-      if (patientsData) {
+      if (!error && data) {
+        const patientsData = data.map((item: any) => item.user_profiles).filter(Boolean)
         setPatients(patientsData)
       }
     } catch (error) {
