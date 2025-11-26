@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { LogOut, Users, Activity, Mail, Settings, Send, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, Edit, Trash2, Plus, Shield, MessageSquare, Video } from 'lucide-react';
 
 interface User {
   id: string;
@@ -937,14 +937,40 @@ export default function AdminDashboard() {
       <header className="bg-slate-800/50 border-b border-purple-500/20 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">Painel Administrativo</h1>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => router.push('/demo/email')}
+              variant="outline"
+              className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
+            >
+              <Send className="w-4 h-4" />
+              Demo E-mail
+            </Button>
+            <Button
+              onClick={() => router.push('/admin/email-templates')}
+              variant="outline"
+              className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
+            >
+              <Mail className="w-4 h-4" />
+              Templates
+            </Button>
+            <Button
+              onClick={() => router.push('/dashboard/settings')}
+              variant="outline"
+              className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
+            >
+              <Settings className="w-4 h-4" />
+              Configurações
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -1040,8 +1066,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs for different sections */}
-        <Tabs defaultValue="comments" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8">
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-7 mb-8">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="comments">Comentários</TabsTrigger>
             <TabsTrigger value="invoices">Faturas</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
@@ -1049,6 +1076,88 @@ export default function AdminDashboard() {
             <TabsTrigger value="videos">Vídeos</TabsTrigger>
             <TabsTrigger value="activities">Atividades</TabsTrigger>
           </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview">
+            <div className="space-y-6">
+              {/* Info Cards */}
+              <div className="grid md:grid-cols-3 gap-6">
+                <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white border-0">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-4xl font-bold mb-2">5</p>
+                      <p className="text-purple-100">Templates Ativos</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-0">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-4xl font-bold mb-2">100%</p>
+                      <p className="text-blue-100">Taxa de Entrega</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-green-500 to-emerald-500 text-white border-0">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-4xl font-bold mb-2">24/7</p>
+                      <p className="text-green-100">Sistema Ativo</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Start Guide */}
+              <Card className="bg-slate-800/50 border-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white text-2xl">🚀 Guia Rápido</CardTitle>
+                  <CardDescription className="text-gray-400">Comece a usar o sistema em 3 passos simples</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-purple-600 font-bold">1</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-1 text-white">Configure o SMTP</h3>
+                        <p className="text-sm text-gray-400">
+                          Acesse as configurações e adicione suas credenciais de e-mail (Titan, Gmail, etc.)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-600 font-bold">2</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-1 text-white">Personalize Templates</h3>
+                        <p className="text-sm text-gray-400">
+                          Edite os templates de e-mail para cada tipo de notificação automática
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-green-600 font-bold">3</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-1 text-white">Teste e Ative</h3>
+                        <p className="text-sm text-gray-400">
+                          Use a demonstração para testar os envios e ative os templates
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Comments Tab */}
           <TabsContent value="comments">
