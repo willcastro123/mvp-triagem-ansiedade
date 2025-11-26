@@ -13,8 +13,8 @@ import { supabase } from '@/lib/supabase'
 function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [token, setToken] = useState<string | null>(null)
-  const [isValidToken, setIsValidToken] = useState<boolean | null>(null)
+  const [code, setCode] = useState<string | null>(null)
+  const [isValidCode, setIsValidCode] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isResetting, setIsResetting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -34,12 +34,12 @@ function ResetPasswordContent() {
   })
 
   useEffect(() => {
-    const tokenParam = searchParams.get('token')
-    if (tokenParam) {
-      setToken(tokenParam)
-      validateToken(tokenParam)
+    const codeParam = searchParams.get('code')
+    if (codeParam) {
+      setCode(codeParam)
+      validateCode(codeParam)
     } else {
-      setIsValidToken(false)
+      setIsValidCode(false)
       setIsLoading(false)
     }
   }, [searchParams])
@@ -56,41 +56,32 @@ function ResetPasswordContent() {
     })
   }, [passwords.newPassword])
 
-  const validateToken = async (tokenToValidate: string) => {
+  const validateCode = async (codeToValidate: string) => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('reset_token, reset_token_expiry')
-        .eq('reset_token', tokenToValidate)
+        .select('access_code')
+        .eq('access_code', codeToValidate)
         .single()
 
       if (error || !data) {
-        setIsValidToken(false)
+        setIsValidCode(false)
         setIsLoading(false)
         return
       }
 
-      // Verificar se o token expirou
-      const expiryDate = new Date(data.reset_token_expiry)
-      const now = new Date()
-
-      if (now > expiryDate) {
-        setIsValidToken(false)
-        toast.error('Link expirado. Solicite um novo link de redefinição.')
-      } else {
-        setIsValidToken(true)
-      }
+      setIsValidCode(true)
     } catch (error) {
-      console.error('Erro ao validar token:', error)
-      setIsValidToken(false)
+      console.error('Erro ao validar código:', error)
+      setIsValidCode(false)
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleResetPassword = async () => {
-    if (!token) {
-      toast.error('Token inválido')
+    if (!code) {
+      toast.error('Código inválido')
       return
     }
 
@@ -107,24 +98,23 @@ function ResetPasswordContent() {
 
     setIsResetting(true)
     try {
-      // Buscar usuário pelo token
+      // Buscar usuário pelo código
       const { data: userData, error: userError } = await supabase
         .from('user_profiles')
         .select('id, email')
-        .eq('reset_token', token)
+        .eq('access_code', code)
         .single()
 
       if (userError || !userData) {
-        throw new Error('Token inválido')
+        throw new Error('Código inválido')
       }
 
-      // Atualizar senha e limpar token
+      // Atualizar senha e limpar código
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({
           password: passwords.newPassword, // Em produção, use hash (bcrypt)
-          reset_token: null,
-          reset_token_expiry: null
+          access_code: null
         })
         .eq('id', userData.id)
 
@@ -156,7 +146,7 @@ function ResetPasswordContent() {
     )
   }
 
-  if (!isValidToken) {
+  if (!isValidCode) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-red-200">

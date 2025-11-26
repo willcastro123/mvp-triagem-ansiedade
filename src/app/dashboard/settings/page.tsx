@@ -68,26 +68,24 @@ export default function SettingsPage() {
 
     setIsSendingEmail(true)
     try {
-      // Gerar token único para reset de senha
-      const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-      const resetExpiry = new Date(Date.now() + 3600000).toISOString() // 1 hora de validade
+      // Gerar código único para reset de senha (6 dígitos)
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
 
-      // Salvar token no banco de dados
+      // Salvar código no campo access_code
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({ 
-          reset_token: resetToken,
-          reset_token_expiry: resetExpiry
+          access_code: resetCode
         })
         .eq('email', userEmail)
 
       if (updateError) {
-        console.error('Erro ao salvar token:', updateError)
+        console.error('Erro ao salvar código:', updateError)
         throw updateError
       }
 
       // Enviar e-mail via API
-      const resetLink = `${window.location.origin}/reset-password?token=${resetToken}`
+      const resetLink = `${window.location.origin}/reset-password?code=${resetCode}`
       
       const response = await fetch('/api/send-password-reset', {
         method: 'POST',
