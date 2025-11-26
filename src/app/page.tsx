@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
-import { Brain, Heart, Shield, Sparkles, Users, CheckCircle, ArrowRight, Menu, X } from 'lucide-react'
+import { Brain, Heart, Shield, Sparkles, Users, CheckCircle, ArrowRight, Menu, X, Stethoscope, ClipboardList, Video, MessageCircle, Instagram } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useState } from 'react'
@@ -29,27 +29,26 @@ export default function LandingPage() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-6">
-              <a href="#features" className="text-sm font-medium hover:text-purple-600 transition-colors">
-                Recursos
-              </a>
-              <a href="#benefits" className="text-sm font-medium hover:text-purple-600 transition-colors">
-                Benefícios
-              </a>
-              <a href="#about" className="text-sm font-medium hover:text-purple-600 transition-colors">
-                Sobre
-              </a>
+            <nav className="hidden md:flex items-center gap-4">
               <Button 
                 variant="outline"
-                onClick={() => router.push('/admin/login')}
+                onClick={() => router.push('/login')}
               >
-                Login Admin
+                Login Usuário
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => window.open('https://www.instagram.com', '_blank')}
+              >
+                <Instagram className="w-4 h-4 mr-2" />
+                Suporte
               </Button>
               <Button 
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                onClick={() => router.push('/register')}
+                onClick={() => router.push('/quiz')}
               >
-                Começar Agora
+                Fazer Quiz
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </nav>
 
@@ -65,27 +64,27 @@ export default function LandingPage() {
           {/* Mobile Navigation */}
           {mobileMenuOpen && (
             <nav className="md:hidden mt-4 pb-4 flex flex-col gap-3">
-              <a href="#features" className="text-sm font-medium hover:text-purple-600 transition-colors">
-                Recursos
-              </a>
-              <a href="#benefits" className="text-sm font-medium hover:text-purple-600 transition-colors">
-                Benefícios
-              </a>
-              <a href="#about" className="text-sm font-medium hover:text-purple-600 transition-colors">
-                Sobre
-              </a>
               <Button 
                 variant="outline"
-                onClick={() => router.push('/admin/login')}
+                onClick={() => router.push('/login')}
                 className="w-full"
               >
-                Login Admin
+                Login Usuário
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => window.open('https://www.instagram.com', '_blank')}
+                className="w-full"
+              >
+                <Instagram className="w-4 h-4 mr-2" />
+                Suporte
               </Button>
               <Button 
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                onClick={() => router.push('/register')}
+                onClick={() => router.push('/quiz')}
               >
-                Começar Agora
+                Fazer Quiz
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </nav>
           )}
@@ -98,66 +97,216 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-full">
             <Sparkles className="w-4 h-4 text-purple-600" />
             <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-              Seu companheiro de apoio à ansiedade
+              Plataforma completa de apoio à ansiedade
             </span>
           </div>
 
           <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-            Gerencie sua ansiedade com{' '}
+            Bem-vindo ao{' '}
             <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              apoio personalizado
+              ZentiaMind
             </span>
           </h1>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Triagem personalizada, ferramentas de crise e acompanhamento profissional para ajudá-lo a viver melhor.
+            Uma plataforma inovadora que conecta você a profissionais especializados, oferece ferramentas de autoajuda e acompanhamento personalizado para gerenciar sua ansiedade.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg"
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-lg px-8"
-              onClick={() => router.push('/register')}
+              onClick={() => router.push('/quiz')}
             >
-              Começar Gratuitamente
+              Começar com o Quiz
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button 
               size="lg"
               variant="outline"
               className="text-lg px-8"
-              onClick={() => router.push('/about')}
+              onClick={() => router.push('/login')}
             >
-              Saiba Mais
+              Fazer Login
             </Button>
           </div>
+        </div>
+      </section>
 
-          <div className="flex items-center justify-center gap-8 pt-8">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-purple-600">24/7</p>
-              <p className="text-sm text-muted-foreground">Suporte Disponível</p>
+      {/* Platform Features */}
+      <section className="container mx-auto px-4 py-20 bg-white/50 dark:bg-gray-900/50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Como funciona a plataforma ZentiaMind
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Uma jornada completa de apoio e acompanhamento profissional
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="border-2 border-purple-200 dark:border-purple-800 hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-4">
+                  <ClipboardList className="w-7 h-7 text-white" />
+                </div>
+                <CardTitle>1. Quiz Inicial</CardTitle>
+                <CardDescription>
+                  Responda nosso questionário completo para avaliarmos seu nível de ansiedade e necessidades específicas
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="border-2 border-blue-200 dark:border-blue-800 hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mb-4">
+                  <Stethoscope className="w-7 h-7 text-white" />
+                </div>
+                <CardTitle>2. Conexão com Doutor</CardTitle>
+                <CardDescription>
+                  Conectamos você com um profissional especializado que analisará seus resultados e criará um plano personalizado
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="border-2 border-green-200 dark:border-green-800 hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mb-4">
+                  <Video className="w-7 h-7 text-white" />
+                </div>
+                <CardTitle>3. Conteúdo Personalizado</CardTitle>
+                <CardDescription>
+                  Acesse vídeos, exercícios e técnicas recomendadas especificamente para seu perfil e necessidades
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="border-2 border-orange-200 dark:border-orange-800 hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mb-4">
+                  <MessageCircle className="w-7 h-7 text-white" />
+                </div>
+                <CardTitle>4. Acompanhamento</CardTitle>
+                <CardDescription>
+                  Receba suporte contínuo através do chat, atualizações de progresso e ajustes no seu plano de tratamento
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Doctor Panel Section */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <Stethoscope className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  Para Profissionais
+                </span>
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-bold">
+                Painel do Doutor
+              </h2>
+              
+              <p className="text-lg text-muted-foreground">
+                Uma ferramenta completa para profissionais de saúde mental gerenciarem seus pacientes de forma eficiente e personalizada.
+              </p>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-semibold mb-1">Análise de Resultados</h3>
+                    <p className="text-muted-foreground">Visualize e analise os resultados dos quizzes dos seus pacientes em tempo real</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-semibold mb-1">Gestão de Pacientes</h3>
+                    <p className="text-muted-foreground">Acompanhe o progresso de cada paciente e ajuste os planos de tratamento</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-semibold mb-1">Biblioteca de Conteúdo</h3>
+                    <p className="text-muted-foreground">Recomende vídeos, exercícios e técnicas personalizadas para cada caso</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-semibold mb-1">Comunicação Direta</h3>
+                    <p className="text-muted-foreground">Chat integrado para manter contato constante com seus pacientes</p>
+                  </div>
+                </div>
+              </div>
+
+              <Button 
+                size="lg"
+                variant="outline"
+                className="text-lg px-8"
+                onClick={() => router.push('/doctor/login')}
+              >
+                Acessar Painel do Doutor
+              </Button>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-purple-600">100%</p>
-              <p className="text-sm text-muted-foreground">Confidencial</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-purple-600">1000+</p>
-              <p className="text-sm text-muted-foreground">Usuários Ativos</p>
+
+            <div className="grid grid-cols-2 gap-6">
+              <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white border-0">
+                <CardContent className="pt-6">
+                  <Users className="w-8 h-8 mb-3" />
+                  <p className="text-3xl font-bold mb-2">500+</p>
+                  <p className="text-purple-100">Pacientes Atendidos</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-0">
+                <CardContent className="pt-6">
+                  <Video className="w-8 h-8 mb-3" />
+                  <p className="text-3xl font-bold mb-2">200+</p>
+                  <p className="text-blue-100">Vídeos Disponíveis</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-500 to-emerald-500 text-white border-0">
+                <CardContent className="pt-6">
+                  <Stethoscope className="w-8 h-8 mb-3" />
+                  <p className="text-3xl font-bold mb-2">50+</p>
+                  <p className="text-green-100">Profissionais</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-orange-500 to-red-500 text-white border-0">
+                <CardContent className="pt-6">
+                  <Heart className="w-8 h-8 mb-3" />
+                  <p className="text-3xl font-bold mb-2">98%</p>
+                  <p className="text-orange-100">Satisfação</p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="container mx-auto px-4 py-20 bg-white/50 dark:bg-gray-900/50">
+      {/* Benefits Section */}
+      <section className="container mx-auto px-4 py-20 bg-white/50 dark:bg-gray-900/50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Recursos que fazem a diferença
+              Por que escolher o ZentiaMind?
             </h2>
             <p className="text-xl text-muted-foreground">
-              Ferramentas desenvolvidas para apoiar você em cada momento
+              Uma plataforma completa desenvolvida com base em evidências científicas
             </p>
           </div>
 
@@ -167,9 +316,9 @@ export default function LandingPage() {
                 <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-4">
                   <Brain className="w-7 h-7 text-white" />
                 </div>
-                <CardTitle>Triagem Personalizada</CardTitle>
+                <CardTitle>Baseado em Ciência</CardTitle>
                 <CardDescription>
-                  Avaliação inicial completa para entender seu tipo de ansiedade e criar um plano personalizado
+                  Técnicas e métodos validados por pesquisas em psicologia e psiquiatria moderna
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -177,11 +326,11 @@ export default function LandingPage() {
             <Card className="border-2 border-blue-200 dark:border-blue-800 hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mb-4">
-                  <Heart className="w-7 h-7 text-white" />
+                  <Shield className="w-7 h-7 text-white" />
                 </div>
-                <CardTitle>Ferramentas de Crise</CardTitle>
+                <CardTitle>100% Seguro e Privado</CardTitle>
                 <CardDescription>
-                  Acesso imediato a técnicas de respiração, meditação guiada e exercícios de grounding
+                  Seus dados são criptografados e protegidos. Privacidade e confidencialidade garantidas
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -189,98 +338,14 @@ export default function LandingPage() {
             <Card className="border-2 border-green-200 dark:border-green-800 hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mb-4">
-                  <Shield className="w-7 h-7 text-white" />
+                  <Heart className="w-7 h-7 text-white" />
                 </div>
-                <CardTitle>Acompanhamento Profissional</CardTitle>
+                <CardTitle>Suporte Humanizado</CardTitle>
                 <CardDescription>
-                  Conecte-se com psicólogos e psiquiatras especializados em ansiedade
+                  Profissionais qualificados e uma comunidade acolhedora para apoiar sua jornada
                 </CardDescription>
               </CardHeader>
             </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Benefits Section */}
-      <section id="benefits" className="container mx-auto px-4 py-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <h2 className="text-3xl md:text-4xl font-bold">
-                Por que escolher o ZentiaMind?
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Uma plataforma completa desenvolvida com base em evidências científicas e feedback de profissionais de saúde mental.
-              </p>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="font-semibold mb-1">Baseado em Ciência</h3>
-                    <p className="text-muted-foreground">Técnicas validadas por pesquisas em psicologia e psiquiatria</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="font-semibold mb-1">Privacidade Garantida</h3>
-                    <p className="text-muted-foreground">Seus dados são criptografados e nunca compartilhados</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="font-semibold mb-1">Suporte 24/7</h3>
-                    <p className="text-muted-foreground">Ferramentas disponíveis a qualquer momento, onde você estiver</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="font-semibold mb-1">Comunidade Acolhedora</h3>
-                    <p className="text-muted-foreground">Conecte-se com outras pessoas que entendem sua jornada</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white border-0">
-                <CardContent className="pt-6">
-                  <Users className="w-8 h-8 mb-3" />
-                  <p className="text-3xl font-bold mb-2">1000+</p>
-                  <p className="text-purple-100">Usuários Ativos</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-0">
-                <CardContent className="pt-6">
-                  <Heart className="w-8 h-8 mb-3" />
-                  <p className="text-3xl font-bold mb-2">95%</p>
-                  <p className="text-blue-100">Satisfação</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-green-500 to-emerald-500 text-white border-0">
-                <CardContent className="pt-6">
-                  <Shield className="w-8 h-8 mb-3" />
-                  <p className="text-3xl font-bold mb-2">100%</p>
-                  <p className="text-green-100">Seguro</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-orange-500 to-red-500 text-white border-0">
-                <CardContent className="pt-6">
-                  <Brain className="w-8 h-8 mb-3" />
-                  <p className="text-3xl font-bold mb-2">24/7</p>
-                  <p className="text-orange-100">Disponível</p>
-                </CardContent>
-              </Card>
-            </div>
           </div>
         </div>
       </section>
@@ -293,17 +358,28 @@ export default function LandingPage() {
               Pronto para começar sua jornada?
             </h2>
             <p className="text-xl text-purple-100 mb-8 max-w-2xl mx-auto">
-              Junte-se a milhares de pessoas que já estão gerenciando melhor sua ansiedade com o ZentiaMind
+              Faça nosso quiz inicial e descubra como podemos ajudá-lo a gerenciar melhor sua ansiedade
             </p>
-            <Button 
-              size="lg"
-              variant="secondary"
-              className="text-lg px-8"
-              onClick={() => router.push('/register')}
-            >
-              Criar Conta Gratuita
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg"
+                variant="secondary"
+                className="text-lg px-8"
+                onClick={() => router.push('/quiz')}
+              >
+                Fazer Quiz Agora
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+              <Button 
+                size="lg"
+                variant="outline"
+                className="text-lg px-8 bg-white/10 hover:bg-white/20 text-white border-white/30"
+                onClick={() => window.open('https://www.instagram.com', '_blank')}
+              >
+                <Instagram className="w-5 h-5 mr-2" />
+                Falar com Suporte
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -320,26 +396,35 @@ export default function LandingPage() {
                 <span className="font-bold text-lg">ZentiaMind</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Seu companheiro de apoio para gerenciar ansiedade
+                Plataforma completa de apoio à ansiedade com acompanhamento profissional
               </p>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4">Recursos</h3>
+              <h3 className="font-semibold mb-4">Plataforma</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-purple-600 transition-colors">Triagem</a></li>
-                <li><a href="#" className="hover:text-purple-600 transition-colors">Ferramentas de Crise</a></li>
-                <li><a href="#" className="hover:text-purple-600 transition-colors">Meditação</a></li>
-                <li><a href="#" className="hover:text-purple-600 transition-colors">Profissionais</a></li>
+                <li><a href="#" onClick={() => router.push('/quiz')} className="hover:text-purple-600 transition-colors">Fazer Quiz</a></li>
+                <li><a href="#" onClick={() => router.push('/login')} className="hover:text-purple-600 transition-colors">Login Usuário</a></li>
+                <li><a href="#" onClick={() => router.push('/doctor/login')} className="hover:text-purple-600 transition-colors">Painel do Doutor</a></li>
+                <li><a href="#" className="hover:text-purple-600 transition-colors">Biblioteca de Vídeos</a></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4">Empresa</h3>
+              <h3 className="font-semibold mb-4">Suporte</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#about" className="hover:text-purple-600 transition-colors">Sobre</a></li>
-                <li><a href="#" className="hover:text-purple-600 transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-purple-600 transition-colors">Carreiras</a></li>
+                <li>
+                  <a 
+                    href="#" 
+                    onClick={() => window.open('https://www.instagram.com', '_blank')} 
+                    className="hover:text-purple-600 transition-colors flex items-center gap-2"
+                  >
+                    <Instagram className="w-4 h-4" />
+                    Instagram
+                  </a>
+                </li>
+                <li><a href="#" className="hover:text-purple-600 transition-colors">Central de Ajuda</a></li>
+                <li><a href="#" className="hover:text-purple-600 transition-colors">FAQ</a></li>
                 <li><a href="#" className="hover:text-purple-600 transition-colors">Contato</a></li>
               </ul>
             </div>
@@ -348,7 +433,7 @@ export default function LandingPage() {
               <h3 className="font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#" className="hover:text-purple-600 transition-colors">Privacidade</a></li>
-                <li><a href="#" className="hover:text-purple-600 transition-colors">Termos</a></li>
+                <li><a href="#" className="hover:text-purple-600 transition-colors">Termos de Uso</a></li>
                 <li><a href="#" className="hover:text-purple-600 transition-colors">Cookies</a></li>
                 <li><a href="#" className="hover:text-purple-600 transition-colors">Licenças</a></li>
               </ul>

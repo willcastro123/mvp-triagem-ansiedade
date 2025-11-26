@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { LogOut, Users, Activity, Mail, Settings, Send, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, Edit, Trash2, Plus, Shield, MessageSquare, Video } from 'lucide-react';
+import { LogOut, Users, Activity, Mail, Settings, Send, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, Edit, Trash2, Plus, Shield, MessageSquare, Video, Mic, FileVideo, Sparkles } from 'lucide-react';
 
 interface User {
   id: string;
@@ -151,8 +151,15 @@ export default function AdminDashboard() {
     description: '',
     video_url: '',
     thumbnail_url: '',
-    duration: 0
+    duration: 0,
+    uploadType: 'url' as 'url' | 'file' | 'ai-voice' | 'ai-video'
   });
+
+  // Estados para geração de IA
+  const [aiVoiceText, setAiVoiceText] = useState('');
+  const [aiVideoPrompt, setAiVideoPrompt] = useState('');
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -632,6 +639,87 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleGenerateAIVoice = async () => {
+    if (!aiVoiceText.trim()) {
+      alert('Digite o texto para gerar o áudio');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Aqui você integraria com uma API de Text-to-Speech (ElevenLabs, OpenAI TTS, etc.)
+      alert('Funcionalidade de geração de voz com IA será implementada em breve!');
+      // Exemplo de integração:
+      // const response = await fetch('/api/generate-voice', {
+      //   method: 'POST',
+      //   body: JSON.stringify({ text: aiVoiceText })
+      // });
+      // const { audioUrl } = await response.json();
+      // setVideoFormData({ ...videoFormData, video_url: audioUrl });
+    } catch (error: any) {
+      console.error('Erro ao gerar áudio:', error);
+      alert('Erro ao gerar áudio: ' + error.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateAIVideo = async () => {
+    if (!aiVideoPrompt.trim()) {
+      alert('Digite o prompt para gerar o vídeo');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Aqui você integraria com uma API de geração de vídeo (Runway, Pika, etc.)
+      alert('Funcionalidade de geração de vídeo com IA será implementada em breve!');
+      // Exemplo de integração:
+      // const response = await fetch('/api/generate-video', {
+      //   method: 'POST',
+      //   body: JSON.stringify({ prompt: aiVideoPrompt })
+      // });
+      // const { videoUrl } = await response.json();
+      // setVideoFormData({ ...videoFormData, video_url: videoUrl });
+    } catch (error: any) {
+      console.error('Erro ao gerar vídeo:', error);
+      alert('Erro ao gerar vídeo: ' + error.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsGenerating(true);
+    try {
+      // Aqui você faria upload para seu storage (Supabase Storage, AWS S3, etc.)
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Exemplo de upload para Supabase Storage
+      const { supabase } = await import('@/lib/supabase');
+      const fileName = `${Date.now()}_${file.name}`;
+      
+      const { data, error } = await supabase.storage
+        .from('meditation-videos')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('meditation-videos')
+        .getPublicUrl(fileName);
+
+      setVideoFormData({ ...videoFormData, video_url: publicUrl });
+      alert('Vídeo enviado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao fazer upload:', error);
+      alert('Erro ao fazer upload: ' + error.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleUploadVideo = async () => {
     try {
       // Validar campos obrigatórios
@@ -816,8 +904,12 @@ export default function AdminDashboard() {
       description: '',
       video_url: '',
       thumbnail_url: '',
-      duration: 0
+      duration: 0,
+      uploadType: 'url'
     });
+    setAiVoiceText('');
+    setAiVideoPrompt('');
+    setSelectedVideoFile(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -2097,57 +2189,197 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Upload de Vídeo */}
+      {/* Modal: Upload de Vídeo com IA */}
       <Dialog open={showUploadVideo} onOpenChange={setShowUploadVideo}>
-        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-2xl">
+        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-white">Adicionar Vídeo de Meditação</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Preencha as informações do vídeo
+              Escolha como deseja adicionar o vídeo
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="video_title" className="text-gray-300">Título *</Label>
-              <Input
-                id="video_title"
-                value={videoFormData.title}
-                onChange={(e) => setVideoFormData({ ...videoFormData, title: e.target.value })}
-                placeholder="Ex: Meditação para Ansiedade"
-                className="bg-slate-900 border-purple-500/20 text-white"
-              />
+          
+          <div className="space-y-6">
+            {/* Seletor de Tipo de Upload */}
+            <div className="grid grid-cols-4 gap-3">
+              <Button
+                variant={videoFormData.uploadType === 'url' ? 'default' : 'outline'}
+                onClick={() => setVideoFormData({ ...videoFormData, uploadType: 'url' })}
+                className="flex flex-col gap-2 h-auto py-4"
+              >
+                <Upload className="w-5 h-5" />
+                <span className="text-xs">URL</span>
+              </Button>
+              <Button
+                variant={videoFormData.uploadType === 'file' ? 'default' : 'outline'}
+                onClick={() => setVideoFormData({ ...videoFormData, uploadType: 'file' })}
+                className="flex flex-col gap-2 h-auto py-4"
+              >
+                <FileVideo className="w-5 h-5" />
+                <span className="text-xs">Arquivo</span>
+              </Button>
+              <Button
+                variant={videoFormData.uploadType === 'ai-voice' ? 'default' : 'outline'}
+                onClick={() => setVideoFormData({ ...videoFormData, uploadType: 'ai-voice' })}
+                className="flex flex-col gap-2 h-auto py-4"
+              >
+                <Mic className="w-5 h-5" />
+                <span className="text-xs">IA Voz</span>
+              </Button>
+              <Button
+                variant={videoFormData.uploadType === 'ai-video' ? 'default' : 'outline'}
+                onClick={() => setVideoFormData({ ...videoFormData, uploadType: 'ai-video' })}
+                className="flex flex-col gap-2 h-auto py-4"
+              >
+                <Sparkles className="w-5 h-5" />
+                <span className="text-xs">IA Vídeo</span>
+              </Button>
             </div>
-            <div>
-              <Label htmlFor="video_description" className="text-gray-300">Descrição</Label>
-              <Textarea
-                id="video_description"
-                value={videoFormData.description}
-                onChange={(e) => setVideoFormData({ ...videoFormData, description: e.target.value })}
-                placeholder="Descreva o conteúdo do vídeo..."
-                className="bg-slate-900 border-purple-500/20 text-white min-h-[100px]"
-              />
+
+            {/* Campos Comuns */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="video_title" className="text-gray-300">Título *</Label>
+                <Input
+                  id="video_title"
+                  value={videoFormData.title}
+                  onChange={(e) => setVideoFormData({ ...videoFormData, title: e.target.value })}
+                  placeholder="Ex: Meditação para Ansiedade"
+                  className="bg-slate-900 border-purple-500/20 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="video_description" className="text-gray-300">Descrição</Label>
+                <Textarea
+                  id="video_description"
+                  value={videoFormData.description}
+                  onChange={(e) => setVideoFormData({ ...videoFormData, description: e.target.value })}
+                  placeholder="Descreva o conteúdo do vídeo..."
+                  className="bg-slate-900 border-purple-500/20 text-white min-h-[100px]"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="video_url" className="text-gray-300">URL do Vídeo *</Label>
-              <Input
-                id="video_url"
-                value={videoFormData.video_url}
-                onChange={(e) => setVideoFormData({ ...videoFormData, video_url: e.target.value })}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="bg-slate-900 border-purple-500/20 text-white"
-              />
-              <p className="text-xs text-gray-500 mt-1">Cole a URL do YouTube, Vimeo ou outro serviço</p>
-            </div>
-            <div>
-              <Label htmlFor="thumbnail_url" className="text-gray-300">URL da Thumbnail (opcional)</Label>
-              <Input
-                id="thumbnail_url"
-                value={videoFormData.thumbnail_url}
-                onChange={(e) => setVideoFormData({ ...videoFormData, thumbnail_url: e.target.value })}
-                placeholder="https://..."
-                className="bg-slate-900 border-purple-500/20 text-white"
-              />
-            </div>
+
+            {/* Conteúdo Específico por Tipo */}
+            {videoFormData.uploadType === 'url' && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="video_url" className="text-gray-300">URL do Vídeo *</Label>
+                  <Input
+                    id="video_url"
+                    value={videoFormData.video_url}
+                    onChange={(e) => setVideoFormData({ ...videoFormData, video_url: e.target.value })}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="bg-slate-900 border-purple-500/20 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Cole a URL do YouTube, Vimeo ou outro serviço</p>
+                </div>
+                <div>
+                  <Label htmlFor="thumbnail_url" className="text-gray-300">URL da Thumbnail (opcional)</Label>
+                  <Input
+                    id="thumbnail_url"
+                    value={videoFormData.thumbnail_url}
+                    onChange={(e) => setVideoFormData({ ...videoFormData, thumbnail_url: e.target.value })}
+                    placeholder="https://..."
+                    className="bg-slate-900 border-purple-500/20 text-white"
+                  />
+                </div>
+              </div>
+            )}
+
+            {videoFormData.uploadType === 'file' && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="video_file" className="text-gray-300">Arquivo de Vídeo *</Label>
+                  <Input
+                    id="video_file"
+                    type="file"
+                    accept="video/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setSelectedVideoFile(file);
+                        handleFileUpload(file);
+                      }
+                    }}
+                    className="bg-slate-900 border-purple-500/20 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Selecione um arquivo de vídeo do seu computador</p>
+                </div>
+                {selectedVideoFile && (
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                    <p className="text-green-400 text-sm">✓ Arquivo selecionado: {selectedVideoFile.name}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {videoFormData.uploadType === 'ai-voice' && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="ai_voice_text" className="text-gray-300">Texto para Gerar Áudio *</Label>
+                  <Textarea
+                    id="ai_voice_text"
+                    value={aiVoiceText}
+                    onChange={(e) => setAiVoiceText(e.target.value)}
+                    placeholder="Digite o texto que será convertido em áudio pela IA..."
+                    className="bg-slate-900 border-purple-500/20 text-white min-h-[150px]"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">A IA gerará um áudio com voz natural a partir deste texto</p>
+                </div>
+                <Button
+                  onClick={handleGenerateAIVoice}
+                  disabled={isGenerating || !aiVoiceText.trim()}
+                  className="w-full gap-2 bg-purple-600 hover:bg-purple-700"
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4" />
+                      Gerar Áudio com IA
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {videoFormData.uploadType === 'ai-video' && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="ai_video_prompt" className="text-gray-300">Prompt para Gerar Vídeo *</Label>
+                  <Textarea
+                    id="ai_video_prompt"
+                    value={aiVideoPrompt}
+                    onChange={(e) => setAiVideoPrompt(e.target.value)}
+                    placeholder="Descreva o vídeo que deseja gerar. Ex: 'Uma cena relaxante de praia ao pôr do sol com ondas suaves'"
+                    className="bg-slate-900 border-purple-500/20 text-white min-h-[150px]"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">A IA gerará um vídeo baseado na sua descrição</p>
+                </div>
+                <Button
+                  onClick={handleGenerateAIVideo}
+                  disabled={isGenerating || !aiVideoPrompt.trim()}
+                  className="w-full gap-2 bg-purple-600 hover:bg-purple-700"
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Gerar Vídeo com IA
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
             <div>
               <Label htmlFor="duration" className="text-gray-300">Duração (em segundos)</Label>
               <Input
@@ -2160,11 +2392,16 @@ export default function AdminDashboard() {
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUploadVideo(false)} className="border-purple-500/20">
               Cancelar
             </Button>
-            <Button onClick={handleUploadVideo} className="bg-blue-600 hover:bg-blue-700">
+            <Button 
+              onClick={handleUploadVideo} 
+              disabled={!videoFormData.title || !videoFormData.video_url}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               Adicionar Vídeo
             </Button>
           </DialogFooter>
