@@ -50,14 +50,19 @@ export default function SettingsPage() {
   }
 
   const handleRequestPasswordReset = async () => {
+    console.log('🔵 [FRONTEND] handleRequestPasswordReset chamado')
+    
     if (!user?.email) {
+      console.log('❌ [FRONTEND] E-mail não encontrado no usuário')
       toast.error('E-mail não encontrado')
       return
     }
 
+    console.log('📧 [FRONTEND] E-mail do usuário:', user.email)
     setIsRequestingReset(true)
 
     try {
+      console.log('🚀 [FRONTEND] Enviando requisição para API...')
       const response = await fetch('/api/request-password-reset', {
         method: 'POST',
         headers: {
@@ -66,13 +71,17 @@ export default function SettingsPage() {
         body: JSON.stringify({ email: user.email }),
       })
 
+      console.log('📥 [FRONTEND] Resposta recebida:', response.status)
       const data = await response.json()
+      console.log('📦 [FRONTEND] Dados da resposta:', data)
 
       if (response.ok) {
+        console.log('✅ [FRONTEND] Sucesso!')
         toast.success('E-mail de redefinição enviado! Verifique sua caixa de entrada.')
         
         // Em desenvolvimento, mostrar o link
         if (data.resetLink) {
+          console.log('🔗 [FRONTEND] Link de redefinição:', data.resetLink)
           toast.info('Link de desenvolvimento: ' + data.resetLink, {
             duration: 10000,
           })
@@ -80,12 +89,14 @@ export default function SettingsPage() {
         
         setIsPasswordDialogOpen(false)
       } else {
+        console.log('❌ [FRONTEND] Erro na resposta:', data.error)
         toast.error(data.error || 'Erro ao solicitar redefinição de senha')
       }
     } catch (error) {
-      console.error('Erro:', error)
+      console.error('💥 [FRONTEND] Erro ao fazer requisição:', error)
       toast.error('Erro ao processar solicitação')
     } finally {
+      console.log('🏁 [FRONTEND] Finalizando requisição')
       setIsRequestingReset(false)
     }
   }
@@ -234,6 +245,7 @@ export default function SettingsPage() {
                         onClick={handleRequestPasswordReset}
                         disabled={isRequestingReset}
                         className="w-full"
+                        type="button"
                       >
                         {isRequestingReset ? 'Enviando...' : 'Enviar E-mail de Redefinição'}
                       </Button>
