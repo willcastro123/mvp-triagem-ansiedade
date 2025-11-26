@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface User {
   id: string;
@@ -20,6 +21,7 @@ interface User {
   city: string;
   anxiety_type: string;
   is_premium: boolean;
+  access_code?: string;
   created_at: string;
 }
 
@@ -28,6 +30,13 @@ interface Doctor {
   user_id: string;
   specialty: string;
   crm: string;
+  created_at: string;
+}
+
+interface DoctorPatient {
+  id: string;
+  doctor_id: string;
+  patient_id: string;
   created_at: string;
 }
 
@@ -45,6 +54,32 @@ interface Stats {
   totalDoctors: number;
   totalActivities: number;
   todayActivities: number;
+  totalInvoices: number;
+  pendingInvoices: number;
+  paidInvoices: number;
+}
+
+interface MeditationVideo {
+  id: string;
+  title: string;
+  description: string;
+  video_url: string;
+  thumbnail_url: string;
+  duration: number;
+  created_at: string;
+}
+
+interface Invoice {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: 'pending' | 'paid' | 'unpaid';
+  due_date: string;
+  paid_date?: string;
+  description: string;
+  created_at: string;
+  user_name?: string;
+  user_email?: string;
 }
 
 export default function AdminDashboard() {
@@ -52,20 +87,31 @@ export default function AdminDashboard() {
   
   const [users, setUsers] = useState<User[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctorPatients, setDoctorPatients] = useState<DoctorPatient[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [meditationVideos, setMeditationVideos] = useState<MeditationVideo[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     premiumUsers: 0,
     totalDoctors: 0,
     totalActivities: 0,
-    todayActivities: 0
+    todayActivities: 0,
+    totalInvoices: 0,
+    pendingInvoices: 0,
+    paidInvoices: 0
   });
 
   // Estados para modais
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
   const [showAddDoctor, setShowAddDoctor] = useState(false);
+  const [showUploadVideo, setShowUploadVideo] = useState(false);
+  const [showAddPatient, setShowAddPatient] = useState(false);
+  const [showGenerateInvoices, setShowGenerateInvoices] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [patientAccessCode, setPatientAccessCode] = useState('');
 
   // Estados para formulários
   const [formData, setFormData] = useState({
@@ -80,6 +126,14 @@ export default function AdminDashboard() {
   const [doctorFormData, setDoctorFormData] = useState({
     specialty: '',
     crm: ''
+  });
+
+  const [videoFormData, setVideoFormData] = useState({
+    title: '',
+    description: '',
+    video_url: '',
+    thumbnail_url: '',
+    duration: 0
   });
 
   useEffect(() => {
@@ -143,6 +197,60 @@ export default function AdminDashboard() {
         }));
       }
 
+      // Carregar relacionamentos doutor-paciente
+      const { data: doctorPatientsData, error: doctorPatientsError } = await supabase
+        .from('doctor_patients')
+        .select('*');
+
+      if (!doctorPatientsError && doctorPatientsData) {
+        setDoctorPatients(doctorPatientsData);
+      }
+
+      // Carregar vídeos de meditação
+      const { data: videosData, error: videosError } = await supabase
+        .from('meditation_videos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!videosError && videosData) {
+        setMeditationVideos(videosData);
+      }
+
+      // Carregar faturas
+      const { data: invoicesData, error: invoicesError } = await supabase
+        .from('invoices')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!invoicesError && invoicesData) {
+        // Buscar dados dos usuários para as faturas
+        const userIds = [...new Set(invoicesData.map((inv: any) => inv.user_id))];
+        const { data: usersForInvoices } = await supabase
+          .from('user_profiles')
+          .select('id, name, email')
+          .in('id', userIds);
+
+        const userMap = new Map(usersForInvoices?.map(u => [u.id, u]) || []);
+
+        const formattedInvoices = invoicesData.map((invoice: any) => {
+          const user = userMap.get(invoice.user_id);
+          return {
+            ...invoice,
+            user_name: user?.name || 'Usuário desconhecido',
+            user_email: user?.email || ''
+          };
+        });
+
+        setInvoices(formattedInvoices);
+        
+        setStats(prev => ({
+          ...prev,
+          totalInvoices: invoicesData.length,
+          pendingInvoices: invoicesData.filter((i: any) => i.status === 'pending').length,
+          paidInvoices: invoicesData.filter((i: any) => i.status === 'paid').length
+        }));
+      }
+
       // Carregar atividades da tabela user_activity_logs
       const { data: activitiesData, error: activitiesError } = await supabase
         .from('user_activity_logs')
@@ -200,6 +308,10 @@ export default function AdminDashboard() {
     router.push('/admin/login');
   };
 
+  const generateAccessCode = () => {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  };
+
   const handleCreateUser = async () => {
     try {
       // Validar campos obrigatórios
@@ -209,6 +321,9 @@ export default function AdminDashboard() {
       }
 
       const { supabase } = await import('@/lib/supabase');
+
+      // Gerar código de acesso único
+      const accessCode = generateAccessCode();
 
       // Inserir diretamente na tabela user_profiles
       const { data, error } = await supabase
@@ -220,6 +335,7 @@ export default function AdminDashboard() {
           city: formData.city || '',
           anxiety_type: formData.anxiety_type,
           is_premium: formData.is_premium,
+          access_code: accessCode,
           triage_completed: false,
           points: 0
         }])
@@ -227,7 +343,7 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      alert('Usuário criado com sucesso!');
+      alert(`Usuário criado com sucesso! Código de acesso: ${accessCode}`);
       setShowCreateUser(false);
       resetForm();
       loadData();
@@ -329,9 +445,6 @@ export default function AdminDashboard() {
 
       const { supabase } = await import('@/lib/supabase');
 
-      // Criar tabela doctors se não existir
-      await supabase.rpc('create_doctors_table_if_not_exists');
-
       // Inserir na tabela doctors
       const { error } = await supabase
         .from('doctors')
@@ -339,16 +452,250 @@ export default function AdminDashboard() {
           user_id: selectedUser.id,
           specialty: doctorFormData.specialty,
           crm: doctorFormData.crm
-        }]);
+        }])
+        .select();
 
       if (error) throw error;
 
       alert('Doutor cadastrado com sucesso!');
       setShowAddDoctor(false);
+      resetForm();
       loadData();
     } catch (error: any) {
       console.error('Erro ao adicionar doutor:', error);
       alert('Erro ao adicionar doutor: ' + error.message);
+    }
+  };
+
+  const openAddPatient = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setPatientAccessCode('');
+    setShowAddPatient(true);
+  };
+
+  const handleAddPatient = async () => {
+    if (!selectedDoctor) return;
+
+    try {
+      // Validar código de acesso
+      if (!patientAccessCode.trim()) {
+        alert('Digite o código de acesso do paciente');
+        return;
+      }
+
+      const { supabase } = await import('@/lib/supabase');
+
+      // Buscar paciente pelo código de acesso
+      const { data: patientData, error: patientError } = await supabase
+        .from('user_profiles')
+        .select('id, name, email, access_code')
+        .eq('access_code', patientAccessCode.toUpperCase())
+        .single();
+
+      if (patientError || !patientData) {
+        alert('Código de acesso inválido. Verifique e tente novamente.');
+        return;
+      }
+
+      // Verificar se o paciente já está vinculado a este doutor
+      const { data: existingRelation } = await supabase
+        .from('doctor_patients')
+        .select('id')
+        .eq('doctor_id', selectedDoctor.id)
+        .eq('patient_id', patientData.id)
+        .single();
+
+      if (existingRelation) {
+        alert('Este paciente já está vinculado a este doutor.');
+        return;
+      }
+
+      // Criar relacionamento doutor-paciente
+      const { error: insertError } = await supabase
+        .from('doctor_patients')
+        .insert([{
+          doctor_id: selectedDoctor.id,
+          patient_id: patientData.id
+        }]);
+
+      if (insertError) throw insertError;
+
+      alert(`Paciente ${patientData.name} adicionado com sucesso!`);
+      setShowAddPatient(false);
+      setPatientAccessCode('');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao adicionar paciente:', error);
+      alert('Erro ao adicionar paciente: ' + error.message);
+    }
+  };
+
+  const handleUploadVideo = async () => {
+    try {
+      // Validar campos obrigatórios
+      if (!videoFormData.title || !videoFormData.video_url) {
+        alert('Preencha pelo menos o título e a URL do vídeo');
+        return;
+      }
+
+      const { supabase } = await import('@/lib/supabase');
+
+      // Inserir vídeo na tabela
+      const { error } = await supabase
+        .from('meditation_videos')
+        .insert([{
+          title: videoFormData.title,
+          description: videoFormData.description,
+          video_url: videoFormData.video_url,
+          thumbnail_url: videoFormData.thumbnail_url || '',
+          duration: videoFormData.duration || 0
+        }]);
+
+      if (error) throw error;
+
+      alert('Vídeo adicionado com sucesso!');
+      setShowUploadVideo(false);
+      resetVideoForm();
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao adicionar vídeo:', error);
+      alert('Erro ao adicionar vídeo: ' + error.message);
+    }
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este vídeo?')) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const { error } = await supabase
+        .from('meditation_videos')
+        .delete()
+        .eq('id', videoId);
+
+      if (error) throw error;
+
+      alert('Vídeo excluído com sucesso!');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao excluir vídeo:', error);
+      alert('Erro ao excluir vídeo: ' + error.message);
+    }
+  };
+
+  const handleGenerateMonthlyInvoices = async () => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      // Obter data atual e calcular vencimento (próximo mês)
+      const now = new Date();
+      const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 10); // Vencimento dia 10 do próximo mês
+      const dueDateStr = dueDate.toISOString().split('T')[0];
+
+      const invoicesToCreate = [];
+
+      // Gerar faturas para todos os usuários
+      for (const user of users) {
+        // Verificar se já existe fatura pendente para este usuário neste mês
+        const { data: existingInvoice } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .gte('due_date', now.toISOString().split('T')[0])
+          .single();
+
+        if (existingInvoice) {
+          continue; // Já existe fatura pendente, pular
+        }
+
+        // Verificar se usuário é doutor
+        const isDoctor = doctors.some(d => d.user_id === user.id);
+        
+        // Definir valor: R$ 34,90 para usuários normais, R$ 24,90 para doutores
+        const amount = isDoctor ? 24.90 : 34.90;
+
+        invoicesToCreate.push({
+          user_id: user.id,
+          amount: amount,
+          status: 'pending',
+          due_date: dueDateStr,
+          description: `Mensalidade ${now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })} - ${isDoctor ? 'Plano Doutor' : 'Plano Padrão'}`
+        });
+      }
+
+      if (invoicesToCreate.length === 0) {
+        alert('Não há faturas para gerar. Todos os usuários já possuem faturas pendentes.');
+        return;
+      }
+
+      // Inserir faturas em lote
+      const { error } = await supabase
+        .from('invoices')
+        .insert(invoicesToCreate);
+
+      if (error) throw error;
+
+      alert(`${invoicesToCreate.length} faturas geradas com sucesso!`);
+      setShowGenerateInvoices(false);
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao gerar faturas:', error);
+      alert('Erro ao gerar faturas: ' + error.message);
+    }
+  };
+
+  const handleConfirmPayment = async (invoiceId: string) => {
+    if (!confirm('Confirmar pagamento desta fatura?')) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          status: 'paid',
+          paid_date: new Date().toISOString()
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      alert('Pagamento confirmado com sucesso!');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao confirmar pagamento:', error);
+      alert('Erro ao confirmar pagamento: ' + error.message);
+    }
+  };
+
+  const handleMarkAsUnpaid = async (invoiceId: string) => {
+    if (!confirm('Marcar esta fatura como não paga?')) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          status: 'unpaid'
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      alert('Fatura marcada como não paga.');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao atualizar fatura:', error);
+      alert('Erro ao atualizar fatura: ' + error.message);
     }
   };
 
@@ -366,10 +713,32 @@ export default function AdminDashboard() {
       crm: ''
     });
     setSelectedUser(null);
+    setSelectedDoctor(null);
+  };
+
+  const resetVideoForm = () => {
+    setVideoFormData({
+      title: '',
+      description: '',
+      video_url: '',
+      thumbnail_url: '',
+      duration: 0
+    });
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('pt-BR');
+  };
+
+  const formatDateOnly = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
   const getActivityIcon = (type: string) => {
@@ -382,8 +751,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Paga</Badge>;
+      case 'unpaid':
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Não Paga</Badge>;
+      case 'pending':
+      default:
+        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pendente</Badge>;
+    }
+  };
+
   const getUserDoctorInfo = (userId: string) => {
     return doctors.find(d => d.user_id === userId);
+  };
+
+  const getDoctorPatients = (doctorId: string) => {
+    const patientIds = doctorPatients
+      .filter(dp => dp.doctor_id === doctorId)
+      .map(dp => dp.patient_id);
+    
+    return users.filter(u => patientIds.includes(u.id));
+  };
+
+  const filterInvoicesByStatus = (status: string) => {
+    return invoices.filter(inv => inv.status === status);
   };
 
   return (
@@ -425,9 +818,9 @@ export default function AdminDashboard() {
 
           <Card className="bg-slate-800/50 border-purple-500/20">
             <CardContent className="pt-6 text-center">
-              <TrendingUp className="w-8 h-8 mx-auto mb-2 text-green-400" />
-              <p className="text-3xl font-bold text-white">{stats.premiumUsers}</p>
-              <p className="text-sm text-gray-400">Usuários Premium</p>
+              <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-400" />
+              <p className="text-3xl font-bold text-white">{stats.pendingInvoices}</p>
+              <p className="text-sm text-gray-400">Faturas Pendentes</p>
             </CardContent>
           </Card>
 
@@ -440,13 +833,255 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
+        {/* Quick Actions */}
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <Card 
+            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
+            onClick={() => router.push('/admin/meditation-comments')}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Moderação de Comentários</h3>
+                  <p className="text-sm text-gray-400">Aprovar ou rejeitar comentários de meditação</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
+            onClick={() => setShowUploadVideo(true)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Upload de Vídeo</h3>
+                  <p className="text-sm text-gray-400">Adicionar novo vídeo de meditação</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
+            onClick={() => setShowGenerateInvoices(true)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Gerar Faturas Mensais</h3>
+                  <p className="text-sm text-gray-400">Criar faturas automáticas para todos os usuários</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Tabs for different sections */}
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+        <Tabs defaultValue="invoices" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 mb-8">
+            <TabsTrigger value="invoices">Faturas</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
             <TabsTrigger value="doctors">Doutores</TabsTrigger>
+            <TabsTrigger value="videos">Vídeos</TabsTrigger>
             <TabsTrigger value="activities">Atividades</TabsTrigger>
           </TabsList>
+
+          {/* Invoices Tab */}
+          <TabsContent value="invoices">
+            <div className="space-y-6">
+              {/* Resumo de Faturas */}
+              <div className="grid md:grid-cols-3 gap-6">
+                <Card className="bg-slate-800/50 border-yellow-500/20">
+                  <CardContent className="pt-6 text-center">
+                    <Clock className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+                    <p className="text-3xl font-bold text-white">{stats.pendingInvoices}</p>
+                    <p className="text-sm text-gray-400">Pendentes</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-slate-800/50 border-green-500/20">
+                  <CardContent className="pt-6 text-center">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400" />
+                    <p className="text-3xl font-bold text-white">{stats.paidInvoices}</p>
+                    <p className="text-sm text-gray-400">Pagas</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-slate-800/50 border-red-500/20">
+                  <CardContent className="pt-6 text-center">
+                    <XCircle className="w-8 h-8 mx-auto mb-2 text-red-400" />
+                    <p className="text-3xl font-bold text-white">
+                      {invoices.filter(i => i.status === 'unpaid').length}
+                    </p>
+                    <p className="text-sm text-gray-400">Não Pagas</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Faturas Pendentes */}
+              <Card className="bg-slate-800/50 border-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-yellow-400" />
+                    Faturas Pendentes
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Faturas aguardando confirmação de pagamento
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-purple-500/20">
+                          <TableHead className="text-gray-300">Usuário</TableHead>
+                          <TableHead className="text-gray-300">E-mail</TableHead>
+                          <TableHead className="text-gray-300">Valor</TableHead>
+                          <TableHead className="text-gray-300">Vencimento</TableHead>
+                          <TableHead className="text-gray-300">Descrição</TableHead>
+                          <TableHead className="text-gray-300">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filterInvoicesByStatus('pending').map((invoice) => (
+                          <TableRow key={invoice.id} className="border-purple-500/20">
+                            <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
+                            <TableCell className="text-gray-300">{invoice.user_email}</TableCell>
+                            <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
+                            <TableCell className="text-gray-300 text-sm">{invoice.description}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleConfirmPayment(invoice.id)}
+                                  className="gap-1 bg-green-600 hover:bg-green-700"
+                                >
+                                  <CheckCircle className="w-3 h-3" />
+                                  Confirmar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleMarkAsUnpaid(invoice.id)}
+                                  className="gap-1"
+                                >
+                                  <XCircle className="w-3 h-3" />
+                                  Não Paga
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Faturas Pagas */}
+              <Card className="bg-slate-800/50 border-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    Faturas Pagas
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Histórico de faturas confirmadas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-purple-500/20">
+                          <TableHead className="text-gray-300">Usuário</TableHead>
+                          <TableHead className="text-gray-300">Valor</TableHead>
+                          <TableHead className="text-gray-300">Vencimento</TableHead>
+                          <TableHead className="text-gray-300">Data Pagamento</TableHead>
+                          <TableHead className="text-gray-300">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filterInvoicesByStatus('paid').map((invoice) => (
+                          <TableRow key={invoice.id} className="border-purple-500/20">
+                            <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
+                            <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
+                            <TableCell className="text-gray-300">
+                              {invoice.paid_date ? formatDate(invoice.paid_date) : '-'}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Faturas Não Pagas */}
+              <Card className="bg-slate-800/50 border-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <XCircle className="w-5 h-5 text-red-400" />
+                    Faturas Não Pagas
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Faturas vencidas ou não pagas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-purple-500/20">
+                          <TableHead className="text-gray-300">Usuário</TableHead>
+                          <TableHead className="text-gray-300">E-mail</TableHead>
+                          <TableHead className="text-gray-300">Valor</TableHead>
+                          <TableHead className="text-gray-300">Vencimento</TableHead>
+                          <TableHead className="text-gray-300">Status</TableHead>
+                          <TableHead className="text-gray-300">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filterInvoicesByStatus('unpaid').map((invoice) => (
+                          <TableRow key={invoice.id} className="border-purple-500/20">
+                            <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
+                            <TableCell className="text-gray-300">{invoice.user_email}</TableCell>
+                            <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
+                            <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                onClick={() => handleConfirmPayment(invoice.id)}
+                                className="gap-1 bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                                Confirmar Pagamento
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Users Tab */}
           <TabsContent value="users">
@@ -478,6 +1113,7 @@ export default function AdminDashboard() {
                       <TableRow className="border-purple-500/20">
                         <TableHead className="text-gray-300">Nome</TableHead>
                         <TableHead className="text-gray-300">E-mail</TableHead>
+                        <TableHead className="text-gray-300">Código de Acesso</TableHead>
                         <TableHead className="text-gray-300">Cidade</TableHead>
                         <TableHead className="text-gray-300">Tipo de Ansiedade</TableHead>
                         <TableHead className="text-gray-300">Premium</TableHead>
@@ -489,6 +1125,11 @@ export default function AdminDashboard() {
                         <TableRow key={user.id} className="border-purple-500/20">
                           <TableCell className="text-white font-medium">{user.name}</TableCell>
                           <TableCell className="text-gray-300">{user.email}</TableCell>
+                          <TableCell className="text-gray-300">
+                            <Badge variant="outline" className="font-mono border-purple-500/20">
+                              {user.access_code || 'N/A'}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-gray-300">{user.city || '-'}</TableCell>
                           <TableCell className="text-gray-300 capitalize">
                             {user.anxiety_type === 'social' && 'Social'}
@@ -542,7 +1183,7 @@ export default function AdminDashboard() {
                       Gerenciamento de Doutores
                     </CardTitle>
                     <CardDescription className="text-gray-400">
-                      Adicione dados profissionais de doutores
+                      Adicione dados profissionais de doutores e gerencie seus pacientes
                     </CardDescription>
                   </div>
                 </div>
@@ -585,36 +1226,131 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Lista de doutores existentes */}
+                  {/* Lista de doutores existentes com seus pacientes */}
                   <div>
                     <h3 className="text-lg font-semibold text-white mb-4">Doutores Cadastrados</h3>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="border-purple-500/20">
-                            <TableHead className="text-gray-300">Nome</TableHead>
-                            <TableHead className="text-gray-300">E-mail</TableHead>
-                            <TableHead className="text-gray-300">Especialidade</TableHead>
-                            <TableHead className="text-gray-300">CRM</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {doctors.map((doctor) => {
-                            const user = users.find(u => u.id === doctor.user_id);
-                            if (!user) return null;
-                            return (
-                              <TableRow key={doctor.id} className="border-purple-500/20">
-                                <TableCell className="text-white font-medium">{user.name}</TableCell>
-                                <TableCell className="text-gray-300">{user.email}</TableCell>
-                                <TableCell className="text-gray-300">{doctor.specialty}</TableCell>
-                                <TableCell className="text-gray-300">{doctor.crm}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                    <div className="space-y-4">
+                      {doctors.map((doctor) => {
+                        const user = users.find(u => u.id === doctor.user_id);
+                        const patients = getDoctorPatients(doctor.id);
+                        if (!user) return null;
+                        
+                        return (
+                          <Card key={doctor.id} className="bg-slate-900/50 border-purple-500/10">
+                            <CardContent className="pt-6">
+                              <div className="flex items-start justify-between mb-4">
+                                <div>
+                                  <h4 className="text-white font-semibold text-lg">{user.name}</h4>
+                                  <p className="text-gray-400 text-sm">{user.email}</p>
+                                  <div className="flex gap-4 mt-2">
+                                    <Badge variant="outline" className="border-blue-500/20 text-blue-400">
+                                      {doctor.specialty}
+                                    </Badge>
+                                    <Badge variant="outline" className="border-green-500/20 text-green-400">
+                                      {doctor.crm}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => openAddPatient(doctor)}
+                                  className="gap-2 bg-purple-600 hover:bg-purple-700"
+                                >
+                                  <UserPlus className="w-4 h-4" />
+                                  Adicionar Paciente
+                                </Button>
+                              </div>
+
+                              {/* Lista de pacientes do doutor */}
+                              <div className="mt-4 pt-4 border-t border-purple-500/10">
+                                <h5 className="text-white font-semibold mb-3 flex items-center gap-2">
+                                  <Users className="w-4 h-4" />
+                                  Pacientes ({patients.length})
+                                </h5>
+                                {patients.length === 0 ? (
+                                  <p className="text-gray-500 text-sm">Nenhum paciente vinculado ainda</p>
+                                ) : (
+                                  <div className="grid md:grid-cols-2 gap-3">
+                                    {patients.map((patient) => (
+                                      <div 
+                                        key={patient.id}
+                                        className="bg-slate-800/50 p-3 rounded-lg border border-purple-500/10"
+                                      >
+                                        <p className="text-white font-medium">{patient.name}</p>
+                                        <p className="text-gray-400 text-sm">{patient.email}</p>
+                                        <Badge variant="outline" className="mt-2 text-xs border-purple-500/20">
+                                          {patient.access_code}
+                                        </Badge>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Videos Tab */}
+          <TabsContent value="videos">
+            <Card className="bg-slate-800/50 border-purple-500/20">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Video className="w-5 h-5" />
+                      Vídeos de Meditação
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Gerencie os vídeos de meditação disponíveis
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => setShowUploadVideo(true)}
+                    className="gap-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Adicionar Vídeo
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {meditationVideos.map((video) => (
+                    <Card key={video.id} className="bg-slate-900/50 border-purple-500/10">
+                      <CardContent className="pt-6">
+                        {video.thumbnail_url && (
+                          <img 
+                            src={video.thumbnail_url} 
+                            alt={video.title}
+                            className="w-full h-40 object-cover rounded-lg mb-4"
+                          />
+                        )}
+                        <h3 className="text-white font-semibold mb-2">{video.title}</h3>
+                        <p className="text-gray-400 text-sm mb-4 line-clamp-2">{video.description}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">
+                            {video.duration > 0 ? `${Math.floor(video.duration / 60)}min` : 'Duração não definida'}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteVideo(video.id)}
+                            className="gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Excluir
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -862,6 +1598,185 @@ export default function AdminDashboard() {
             </Button>
             <Button onClick={handleAddDoctor} className="bg-green-600 hover:bg-green-700">
               Adicionar Doutor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Adicionar Paciente via Código de Acesso */}
+      <Dialog open={showAddPatient} onOpenChange={setShowAddPatient}>
+        <DialogContent className="bg-slate-800 border-purple-500/20">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              Adicionar Paciente
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Digite o código de acesso do paciente para vinculá-lo a este doutor
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedDoctor && (
+              <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-500/10">
+                <p className="text-white font-semibold mb-1">
+                  {users.find(u => u.id === selectedDoctor.user_id)?.name}
+                </p>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant="outline" className="border-blue-500/20 text-blue-400">
+                    {selectedDoctor.specialty}
+                  </Badge>
+                  <Badge variant="outline" className="border-green-500/20 text-green-400">
+                    {selectedDoctor.crm}
+                  </Badge>
+                </div>
+              </div>
+            )}
+            <div>
+              <Label htmlFor="access_code" className="text-gray-300">Código de Acesso do Paciente *</Label>
+              <Input
+                id="access_code"
+                value={patientAccessCode}
+                onChange={(e) => setPatientAccessCode(e.target.value.toUpperCase())}
+                placeholder="Ex: ABC12345"
+                className="bg-slate-900 border-purple-500/20 text-white font-mono text-lg"
+                maxLength={8}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                O paciente pode encontrar seu código de acesso no perfil dele
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPatient(false)} className="border-purple-500/20">
+              Cancelar
+            </Button>
+            <Button onClick={handleAddPatient} className="bg-purple-600 hover:bg-purple-700">
+              Adicionar Paciente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Upload de Vídeo */}
+      <Dialog open={showUploadVideo} onOpenChange={setShowUploadVideo}>
+        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Adicionar Vídeo de Meditação</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Preencha as informações do vídeo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="video_title" className="text-gray-300">Título *</Label>
+              <Input
+                id="video_title"
+                value={videoFormData.title}
+                onChange={(e) => setVideoFormData({ ...videoFormData, title: e.target.value })}
+                placeholder="Ex: Meditação para Ansiedade"
+                className="bg-slate-900 border-purple-500/20 text-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="video_description" className="text-gray-300">Descrição</Label>
+              <Textarea
+                id="video_description"
+                value={videoFormData.description}
+                onChange={(e) => setVideoFormData({ ...videoFormData, description: e.target.value })}
+                placeholder="Descreva o conteúdo do vídeo..."
+                className="bg-slate-900 border-purple-500/20 text-white min-h-[100px]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="video_url" className="text-gray-300">URL do Vídeo *</Label>
+              <Input
+                id="video_url"
+                value={videoFormData.video_url}
+                onChange={(e) => setVideoFormData({ ...videoFormData, video_url: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="bg-slate-900 border-purple-500/20 text-white"
+              />
+              <p className="text-xs text-gray-500 mt-1">Cole a URL do YouTube, Vimeo ou outro serviço</p>
+            </div>
+            <div>
+              <Label htmlFor="thumbnail_url" className="text-gray-300">URL da Thumbnail (opcional)</Label>
+              <Input
+                id="thumbnail_url"
+                value={videoFormData.thumbnail_url}
+                onChange={(e) => setVideoFormData({ ...videoFormData, thumbnail_url: e.target.value })}
+                placeholder="https://..."
+                className="bg-slate-900 border-purple-500/20 text-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="duration" className="text-gray-300">Duração (em segundos)</Label>
+              <Input
+                id="duration"
+                type="number"
+                value={videoFormData.duration}
+                onChange={(e) => setVideoFormData({ ...videoFormData, duration: parseInt(e.target.value) || 0 })}
+                placeholder="Ex: 600 (para 10 minutos)"
+                className="bg-slate-900 border-purple-500/20 text-white"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUploadVideo(false)} className="border-purple-500/20">
+              Cancelar
+            </Button>
+            <Button onClick={handleUploadVideo} className="bg-blue-600 hover:bg-blue-700">
+              Adicionar Vídeo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Gerar Faturas Mensais */}
+      <Dialog open={showGenerateInvoices} onOpenChange={setShowGenerateInvoices}>
+        <DialogContent className="bg-slate-800 border-purple-500/20">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <DollarSign className="w-5 h-5" />
+              Gerar Faturas Mensais
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Confirme a geração automática de faturas para todos os usuários
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-500/10">
+              <h4 className="text-white font-semibold mb-3">Detalhes da Geração:</h4>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span>Usuários normais: <strong>R$ 34,90</strong></span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-blue-400" />
+                  <span>Doutores: <strong>R$ 24,90</strong> (desconto de R$ 10,00)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-purple-400" />
+                  <span>Vencimento: <strong>Dia 10 do próximo mês</strong></span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-yellow-400" />
+                  <span>Total de usuários: <strong>{users.length}</strong></span>
+                </li>
+              </ul>
+            </div>
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+              <p className="text-yellow-400 text-sm">
+                ⚠️ Faturas pendentes existentes não serão duplicadas. Apenas usuários sem faturas pendentes receberão novas cobranças.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGenerateInvoices(false)} className="border-purple-500/20">
+              Cancelar
+            </Button>
+            <Button onClick={handleGenerateMonthlyInvoices} className="bg-green-600 hover:bg-green-700">
+              Gerar Faturas
             </Button>
           </DialogFooter>
         </DialogContent>
