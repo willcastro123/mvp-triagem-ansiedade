@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
 export async function POST(request: NextRequest) {
   try {
     const { script } = await request.json()
@@ -22,6 +18,11 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Inicializar OpenAI apenas quando necessário (dentro da função)
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
 
     // Gerar áudio usando a API de Text-to-Speech da OpenAI
     const mp3 = await openai.audio.speech.create({
