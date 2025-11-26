@@ -183,18 +183,15 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      // Importar supabase dinamicamente apenas no cliente
       const { supabase } = await import('@/lib/supabase');
 
-      // Carregar usuários da tabela user_profiles
+      // Carregar usuários
       const { data: usersData, error: usersError } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (usersError) {
-        console.error('Erro ao carregar usuários:', usersError);
-      } else if (usersData) {
+      if (!usersError && usersData) {
         setUsers(usersData);
         
         // Calcular estatísticas
@@ -410,48 +407,117 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      alert('Comentário reprovado e excluído com sucesso!');
+      alert('Comentário excluído com sucesso!');
       loadData();
     } catch (error: any) {
-      console.error('Erro ao reprovar comentário:', error);
-      alert('Erro ao reprovar comentário: ' + error.message);
+      console.error('Erro ao excluir comentário:', error);
+      alert('Erro ao excluir comentário: ' + error.message);
+    }
+  };
+
+  const handleConfirmPayment = async (invoiceId: string) => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const { error } = await supabase
+        .from('invoices')
+        .update({ 
+          status: 'paid',
+          paid_at: new Date().toISOString()
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      alert('Pagamento confirmado com sucesso!');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao confirmar pagamento:', error);
+      alert('Erro ao confirmar pagamento: ' + error.message);
+    }
+  };
+
+  const handleMarkAsUnpaid = async (invoiceId: string) => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: 'unpaid' })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      alert('Fatura marcada como não paga!');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao atualizar fatura:', error);
+      alert('Erro ao atualizar fatura: ' + error.message);
+    }
+  };
+
+  const handleGenerateInvoices = async () => {
+    if (!confirm('Tem certeza que deseja gerar faturas mensais para todos os usuários premium?')) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const premiumUsers = users.filter(u => u.is_premium);
+
+      const invoices = premiumUsers.map(user => ({
+        user_id: user.id,
+        amount: 29.90,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('invoices')
+        .insert(invoices);
+
+      if (error) throw error;
+
+      alert(`${invoices.length} faturas geradas com sucesso!`);
+      setShowGenerateInvoices(false);
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao gerar faturas:', error);
+      alert('Erro ao gerar faturas: ' + error.message);
     }
   };
 
   const handleCreateUser = async () => {
     try {
-      // Validar campos obrigatórios
-      if (!formData.name || !formData.email || !formData.password) {
-        alert('Preencha todos os campos obrigatórios');
-        return;
-      }
-
       const { supabase } = await import('@/lib/supabase');
 
-      // Gerar código de acesso único
       const accessCode = generateAccessCode();
 
-      // Inserir diretamente na tabela user_profiles
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('user_profiles')
         .insert([{
           name: formData.name,
           email: formData.email,
-          password: formData.password, // Em produção, usar hash
-          city: formData.city || '',
+          city: formData.city,
           anxiety_type: formData.anxiety_type,
           is_premium: formData.is_premium,
           access_code: accessCode,
-          triage_completed: false,
-          points: 0
-        }])
-        .select();
+          created_at: new Date().toISOString()
+        }]);
 
       if (error) throw error;
 
-      alert(`Usuário criado com sucesso! Código de acesso: ${accessCode}`);
+      alert('Usuário criado com sucesso!');
       setShowCreateUser(false);
-      resetForm();
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        city: '',
+        anxiety_type: 'general',
+        is_premium: false
+      });
       loadData();
     } catch (error: any) {
       console.error('Erro ao criar usuário:', error);
@@ -478,28 +544,30 @@ export default function AdminDashboard() {
     try {
       const { supabase } = await import('@/lib/supabase');
 
-      const updateData: any = {
-        name: formData.name,
-        city: formData.city,
-        anxiety_type: formData.anxiety_type,
-        is_premium: formData.is_premium
-      };
-
-      // Se uma nova senha foi fornecida, incluí-la na atualização
-      if (formData.password.trim()) {
-        updateData.password = formData.password;
-      }
-
       const { error } = await supabase
         .from('user_profiles')
-        .update(updateData)
+        .update({
+          name: formData.name,
+          email: formData.email,
+          city: formData.city,
+          anxiety_type: formData.anxiety_type,
+          is_premium: formData.is_premium
+        })
         .eq('id', selectedUser.id);
 
       if (error) throw error;
 
       alert('Usuário atualizado com sucesso!');
       setShowEditUser(false);
-      resetForm();
+      setSelectedUser(null);
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        city: '',
+        anxiety_type: 'general',
+        is_premium: false
+      });
       loadData();
     } catch (error: any) {
       console.error('Erro ao atualizar usuário:', error);
@@ -508,7 +576,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta conta? Esta ação não pode ser desfeita.')) {
+    if (!confirm('Tem certeza que deseja excluir este usuário?')) {
       return;
     }
 
@@ -522,11 +590,11 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      alert('Conta excluída com sucesso!');
+      alert('Usuário excluído com sucesso!');
       loadData();
     } catch (error: any) {
-      console.error('Erro ao excluir conta:', error);
-      alert('Erro ao excluir conta: ' + error.message);
+      console.error('Erro ao excluir usuário:', error);
+      alert('Erro ao excluir usuário: ' + error.message);
     }
   };
 
@@ -543,29 +611,26 @@ export default function AdminDashboard() {
     if (!selectedUser) return;
 
     try {
-      // Validar campos
-      if (!doctorFormData.specialty || !doctorFormData.crm) {
-        alert('Preencha todos os campos do doutor');
-        return;
-      }
-
       const { supabase } = await import('@/lib/supabase');
 
-      // Inserir na tabela doctors
       const { error } = await supabase
         .from('doctors')
         .insert([{
           user_id: selectedUser.id,
           specialty: doctorFormData.specialty,
-          crm: doctorFormData.crm
-        }])
-        .select();
+          crm: doctorFormData.crm,
+          created_at: new Date().toISOString()
+        }]);
 
       if (error) throw error;
 
-      alert('Doutor cadastrado com sucesso!');
+      alert('Dados de doutor adicionados com sucesso!');
       setShowAddDoctor(false);
-      resetForm();
+      setSelectedUser(null);
+      setDoctorFormData({
+        specialty: '',
+        crm: ''
+      });
       loadData();
     } catch (error: any) {
       console.error('Erro ao adicionar doutor:', error);
@@ -580,88 +645,87 @@ export default function AdminDashboard() {
   };
 
   const handleAddPatient = async () => {
-    if (!selectedDoctor) return;
+    if (!selectedDoctor || !patientAccessCode) {
+      alert('Por favor, insira o código de acesso do paciente.');
+      return;
+    }
 
     try {
-      // Validar código de acesso
-      if (!patientAccessCode.trim()) {
-        alert('Digite o código de acesso do paciente');
-        return;
-      }
-
       const { supabase } = await import('@/lib/supabase');
 
       // Buscar paciente pelo código de acesso
       const { data: patientData, error: patientError } = await supabase
         .from('user_profiles')
-        .select('id, name, email, access_code')
+        .select('id')
         .eq('access_code', patientAccessCode.toUpperCase())
         .single();
 
       if (patientError || !patientData) {
-        alert('Código de acesso inválido. Verifique e tente novamente.');
+        alert('Paciente não encontrado com este código de acesso.');
         return;
       }
 
-      // Verificar se o paciente já está vinculado a este doutor
-      const { data: existingRelation } = await supabase
+      // Verificar se o vínculo já existe
+      const { data: existingLink } = await supabase
         .from('doctor_patients')
         .select('id')
         .eq('doctor_id', selectedDoctor.id)
         .eq('patient_id', patientData.id)
         .single();
 
-      if (existingRelation) {
+      if (existingLink) {
         alert('Este paciente já está vinculado a este doutor.');
         return;
       }
 
-      // Criar relacionamento doutor-paciente
-      const { error: insertError } = await supabase
+      // Criar vínculo
+      const { error } = await supabase
         .from('doctor_patients')
         .insert([{
           doctor_id: selectedDoctor.id,
-          patient_id: patientData.id
+          patient_id: patientData.id,
+          created_at: new Date().toISOString()
         }]);
 
-      if (insertError) throw insertError;
+      if (error) throw error;
 
-      alert(`Paciente ${patientData.name} adicionado com sucesso!`);
+      alert('Paciente vinculado com sucesso!');
       setShowAddPatient(false);
+      setSelectedDoctor(null);
       setPatientAccessCode('');
       loadData();
     } catch (error: any) {
-      console.error('Erro ao adicionar paciente:', error);
-      alert('Erro ao adicionar paciente: ' + error.message);
+      console.error('Erro ao vincular paciente:', error);
+      alert('Erro ao vincular paciente: ' + error.message);
     }
   };
 
   const handleUploadVideo = async () => {
     try {
-      // Validar campos obrigatórios
-      if (!videoFormData.title || !videoFormData.video_url) {
-        alert('Preencha pelo menos o título e a URL do vídeo');
-        return;
-      }
-
       const { supabase } = await import('@/lib/supabase');
 
-      // Inserir vídeo na tabela
       const { error } = await supabase
         .from('meditation_videos')
         .insert([{
           title: videoFormData.title,
           description: videoFormData.description,
           video_url: videoFormData.video_url,
-          thumbnail_url: videoFormData.thumbnail_url || '',
-          duration: videoFormData.duration || 0
+          thumbnail_url: videoFormData.thumbnail_url,
+          duration: videoFormData.duration,
+          created_at: new Date().toISOString()
         }]);
 
       if (error) throw error;
 
       alert('Vídeo adicionado com sucesso!');
       setShowUploadVideo(false);
-      resetVideoForm();
+      setVideoFormData({
+        title: '',
+        description: '',
+        video_url: '',
+        thumbnail_url: '',
+        duration: 0
+      });
       loadData();
     } catch (error: any) {
       console.error('Erro ao adicionar vídeo:', error);
@@ -692,171 +756,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleGenerateMonthlyInvoices = async () => {
-    try {
-      const { supabase } = await import('@/lib/supabase');
-
-      const invoicesToCreate = [];
-
-      // Gerar faturas para todos os usuários
-      for (const user of users) {
-        // Verificar se já existe fatura pendente para este usuário
-        const { data: existingInvoice } = await supabase
-          .from('invoices')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .single();
-
-        if (existingInvoice) {
-          continue; // Já existe fatura pendente, pular
-        }
-
-        // Verificar se usuário é doutor
-        const isDoctor = doctors.some(d => d.user_id === user.id);
-        
-        // Definir valor: R$ 34,90 para usuários normais, R$ 24,90 para doutores
-        const amount = isDoctor ? 24.90 : 34.90;
-
-        invoicesToCreate.push({
-          user_id: user.id,
-          amount: amount,
-          status: 'pending'
-        });
-      }
-
-      if (invoicesToCreate.length === 0) {
-        alert('Não há faturas para gerar. Todos os usuários já possuem faturas pendentes.');
-        return;
-      }
-
-      // Inserir faturas em lote
-      const { error } = await supabase
-        .from('invoices')
-        .insert(invoicesToCreate);
-
-      if (error) throw error;
-
-      alert(`${invoicesToCreate.length} faturas geradas com sucesso!`);
-      setShowGenerateInvoices(false);
-      loadData();
-    } catch (error: any) {
-      console.error('Erro ao gerar faturas:', error);
-      alert('Erro ao gerar faturas: ' + error.message);
-    }
-  };
-
-  const handleConfirmPayment = async (invoiceId: string) => {
-    if (!confirm('Confirmar pagamento desta fatura?')) {
-      return;
-    }
-
-    try {
-      const { supabase } = await import('@/lib/supabase');
-
-      const { error } = await supabase
-        .from('invoices')
-        .update({
-          status: 'paid',
-          paid_at: new Date().toISOString()
-        })
-        .eq('id', invoiceId);
-
-      if (error) throw error;
-
-      alert('Pagamento confirmado com sucesso!');
-      loadData();
-    } catch (error: any) {
-      console.error('Erro ao confirmar pagamento:', error);
-      alert('Erro ao confirmar pagamento: ' + error.message);
-    }
-  };
-
-  const handleMarkAsUnpaid = async (invoiceId: string) => {
-    if (!confirm('Marcar esta fatura como não paga?')) {
-      return;
-    }
-
-    try {
-      const { supabase } = await import('@/lib/supabase');
-
-      const { error } = await supabase
-        .from('invoices')
-        .update({
-          status: 'unpaid'
-        })
-        .eq('id', invoiceId);
-
-      if (error) throw error;
-
-      alert('Fatura marcada como não paga.');
-      loadData();
-    } catch (error: any) {
-      console.error('Erro ao atualizar fatura:', error);
-      alert('Erro ao atualizar fatura: ' + error.message);
-    }
-  };
-
-  const openPatientReport = async (patient: User) => {
-    setSelectedPatientForReport(patient);
-    setShowPatientReport(true);
-
-    try {
-      const { supabase } = await import('@/lib/supabase');
-
-      // Carregar atividades do paciente
-      const { data: activitiesData, error: activitiesError } = await supabase
-        .from('user_activity_logs')
-        .select('*')
-        .eq('user_id', patient.id)
-        .order('created_at', { ascending: false });
-
-      if (!activitiesError && activitiesData) {
-        setPatientActivities(activitiesData);
-      }
-
-      // Carregar comentários do paciente
-      const { data: commentsData, error: commentsError } = await supabase
-        .from('meditation_comments')
-        .select('*, meditation_videos(title)')
-        .eq('user_id', patient.id)
-        .order('created_at', { ascending: false });
-
-      if (!commentsError && commentsData) {
-        setPatientComments(commentsData);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar relatório do paciente:', error);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      city: '',
-      anxiety_type: 'general',
-      is_premium: false
-    });
-    setDoctorFormData({
-      specialty: '',
-      crm: ''
-    });
-    setSelectedUser(null);
-    setSelectedDoctor(null);
-  };
-
-  const resetVideoForm = () => {
-    setVideoFormData({
-      title: '',
-      description: '',
-      video_url: '',
-      thumbnail_url: '',
-      duration: 0
-    });
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('pt-BR');
   };
@@ -870,32 +769,6 @@ export default function AdminDashboard() {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
-  };
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'login': return '🔐';
-      case 'exposure': return '🎯';
-      case 'breathing': return '🫁';
-      case 'sale': return '💰';
-      case 'meditation': return '🧘';
-      case 'quiz': return '📝';
-      case 'scheduling': return '📅';
-      default: return '📝';
-    }
-  };
-
-  const getActivityCategoryLabel = (type: string) => {
-    switch (type) {
-      case 'login': return 'Autenticação';
-      case 'exposure': return 'Exposição';
-      case 'breathing': return 'Respiração';
-      case 'sale': return 'Vendas';
-      case 'meditation': return 'Meditação';
-      case 'quiz': return 'Quiz';
-      case 'scheduling': return 'Agendamento';
-      default: return 'Outros';
-    }
   };
 
   const getActivityCategories = () => {
@@ -1024,54 +897,60 @@ export default function AdminDashboard() {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card 
-            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
-            onClick={() => setShowUploadVideo(true)}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-                  <Upload className="w-6 h-6 text-blue-400" />
+          <Card className="bg-slate-800/50 border-purple-500/20">
+            <CardContent className="pt-6 p-0">
+              <button
+                onClick={() => setShowUploadVideo(true)}
+                className="w-full text-left hover:bg-slate-800/70 transition-colors touch-manipulation"
+              >
+                <div className="flex items-center gap-4 p-6">
+                  <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                    <Upload className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Upload de Vídeo</h3>
+                    <p className="text-sm text-gray-400">Adicionar novo vídeo de meditação</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Upload de Vídeo</h3>
-                  <p className="text-sm text-gray-400">Adicionar novo vídeo de meditação</p>
-                </div>
-              </div>
+              </button>
             </CardContent>
           </Card>
 
-          <Card 
-            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
-            onClick={() => setShowGenerateInvoices(true)}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-green-400" />
+          <Card className="bg-slate-800/50 border-purple-500/20">
+            <CardContent className="pt-6 p-0">
+              <button
+                onClick={() => setShowGenerateInvoices(true)}
+                className="w-full text-left hover:bg-slate-800/70 transition-colors touch-manipulation"
+              >
+                <div className="flex items-center gap-4 p-6">
+                  <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Gerar Faturas Mensais</h3>
+                    <p className="text-sm text-gray-400">Criar faturas automáticas para todos os usuários</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Gerar Faturas Mensais</h3>
-                  <p className="text-sm text-gray-400">Criar faturas automáticas para todos os usuários</p>
-                </div>
-              </div>
+              </button>
             </CardContent>
           </Card>
 
-          <Card 
-            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
-            onClick={() => setShowCreateUser(true)}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
-                  <UserPlus className="w-6 h-6 text-purple-400" />
+          <Card className="bg-slate-800/50 border-purple-500/20">
+            <CardContent className="pt-6 p-0">
+              <button
+                onClick={() => setShowCreateUser(true)}
+                className="w-full text-left hover:bg-slate-800/70 transition-colors touch-manipulation"
+              >
+                <div className="flex items-center gap-4 p-6">
+                  <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
+                    <UserPlus className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Criar Usuário</h3>
+                    <p className="text-sm text-gray-400">Adicionar novo usuário ao sistema</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Criar Usuário</h3>
-                  <p className="text-sm text-gray-400">Adicionar novo usuário ao sistema</p>
-                </div>
-              </div>
+              </button>
             </CardContent>
           </Card>
         </div>
@@ -1589,15 +1468,6 @@ export default function AdminDashboard() {
                                               {patient.access_code}
                                             </Badge>
                                           </div>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => openPatientReport(patient)}
-                                            className="gap-1 border-blue-500/20 hover:bg-blue-500/10 ml-2"
-                                          >
-                                            <Eye className="w-3 h-3" />
-                                            Ver Relatório
-                                          </Button>
                                         </div>
                                       </div>
                                     ))}
@@ -1626,7 +1496,7 @@ export default function AdminDashboard() {
                       Vídeos de Meditação
                     </CardTitle>
                     <CardDescription className="text-gray-400">
-                      Gerencie os vídeos de meditação disponíveis
+                      Gerencie vídeos de meditação disponíveis no app
                     </CardDescription>
                   </div>
                   <Button
@@ -1639,31 +1509,35 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {meditationVideos.map((video) => (
                     <Card key={video.id} className="bg-slate-900/50 border-purple-500/10">
                       <CardContent className="pt-6">
-                        {video.thumbnail_url && (
-                          <img 
-                            src={video.thumbnail_url} 
-                            alt={video.title}
-                            className="w-full h-40 object-cover rounded-lg mb-4"
-                          />
-                        )}
-                        <h3 className="text-white font-semibold mb-2">{video.title}</h3>
-                        <p className="text-gray-400 text-sm mb-4 line-clamp-2">{video.description}</p>
+                        <div className="aspect-video bg-slate-800 rounded-lg mb-3 overflow-hidden">
+                          {video.thumbnail_url ? (
+                            <img 
+                              src={video.thumbnail_url} 
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Video className="w-12 h-12 text-gray-600" />
+                            </div>
+                          )}
+                        </div>
+                        <h4 className="text-white font-semibold mb-2">{video.title}</h4>
+                        <p className="text-gray-400 text-sm mb-3 line-clamp-2">{video.description}</p>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
-                            {video.duration > 0 ? `${Math.floor(video.duration / 60)}min` : 'Duração não definida'}
-                          </span>
+                          <Badge variant="outline" className="border-purple-500/20">
+                            {video.duration} min
+                          </Badge>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => handleDeleteVideo(video.id)}
-                            className="gap-1"
                           >
                             <Trash2 className="w-3 h-3" />
-                            Excluir
                           </Button>
                         </div>
                       </CardContent>
@@ -1683,93 +1557,65 @@ export default function AdminDashboard() {
                   Registro de Atividades
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Todas as atividades dos usuários na plataforma
+                  Histórico completo de atividades dos usuários
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Filtros de Atividades */}
-                <div className="mb-6 space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {/* Campo de Pesquisa */}
+                {/* Filtros */}
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <div className="flex-1">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
-                        placeholder="Pesquisar por descrição, usuário ou e-mail..."
+                        placeholder="Buscar atividades..."
                         value={activitySearchTerm}
                         onChange={(e) => setActivitySearchTerm(e.target.value)}
-                        className="pl-10 bg-slate-900 border-purple-500/20 text-white"
+                        className="pl-10 bg-slate-900/50 border-purple-500/20"
                       />
                     </div>
-
-                    {/* Seletor de Categoria */}
-                    <div className="relative">
-                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-10 pointer-events-none" />
-                      <Select value={selectedActivityCategory} onValueChange={setSelectedActivityCategory}>
-                        <SelectTrigger className="pl-10 bg-slate-900 border-purple-500/20 text-white">
-                          <SelectValue placeholder="Filtrar por categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas as Categorias</SelectItem>
-                          {activityCategories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {getActivityIcon(category)} {getActivityCategoryLabel(category)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-
-                  {/* Indicador de Resultados */}
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-400">
-                      Mostrando {filteredActivities.length} de {activities.length} atividades
-                    </p>
-                    {(activitySearchTerm || selectedActivityCategory !== 'all') && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setActivitySearchTerm('');
-                          setSelectedActivityCategory('all');
-                        }}
-                        className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
-                      >
-                        <XCircle className="w-3 h-3" />
-                        Limpar Filtros
-                      </Button>
-                    )}
-                  </div>
+                  <Select value={selectedActivityCategory} onValueChange={setSelectedActivityCategory}>
+                    <SelectTrigger className="w-full sm:w-[200px] bg-slate-900/50 border-purple-500/20">
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Categorias</SelectItem>
+                      {activityCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Lista de Atividades Filtradas */}
-                <div className="space-y-4">
+                {/* Lista de Atividades */}
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {filteredActivities.length === 0 ? (
                     <div className="text-center py-12">
                       <Activity className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                      <p className="text-gray-400">Nenhuma atividade encontrada com os filtros aplicados.</p>
+                      <p className="text-gray-400">Nenhuma atividade encontrada.</p>
                     </div>
                   ) : (
                     filteredActivities.map((activity: any) => (
                       <div
                         key={activity.id}
-                        className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-colors"
+                        className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-purple-500/10"
                       >
-                        <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-purple-400">
-                          {getActivityIcon(activity.activity_type)}
+                        <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Activity className="w-5 h-5 text-purple-400" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold text-white">{activity.user_name}</p>
-                            <Badge variant="outline" className="text-xs border-purple-500/20 text-gray-400">
-                              {getActivityCategoryLabel(activity.activity_type)}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs border-purple-500/20 text-purple-400">
+                              {activity.activity_type}
                             </Badge>
+                            <span className="text-xs text-gray-500">{formatDate(activity.created_at)}</span>
                           </div>
-                          <p className="text-sm text-gray-400 mb-1">{activity.activity_description}</p>
-                          <p className="text-xs text-gray-500">{activity.user_email}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-xs text-gray-500">{formatDate(activity.created_at)}</p>
+                          <p className="text-white font-medium mb-1">{activity.activity_description}</p>
+                          <p className="text-sm text-gray-400">
+                            Usuário: <span className="text-gray-300">{activity.user_name}</span> ({activity.user_email})
+                          </p>
                         </div>
                       </div>
                     ))
@@ -1787,52 +1633,42 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle className="text-white">Criar Novo Usuário</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Preencha os dados do novo usuário
+              Adicione um novo usuário ao sistema
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-gray-300">Nome *</Label>
+              <Label htmlFor="name" className="text-white">Nome</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="email" className="text-gray-300">E-mail *</Label>
+              <Label htmlFor="email" className="text-white">E-mail</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="password" className="text-gray-300">Senha *</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="bg-slate-900 border-purple-500/20 text-white"
-              />
-            </div>
-            <div>
-              <Label htmlFor="city" className="text-gray-300">Cidade</Label>
+              <Label htmlFor="city" className="text-white">Cidade</Label>
               <Input
                 id="city"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="anxiety_type" className="text-gray-300">Tipo de Ansiedade</Label>
+              <Label htmlFor="anxiety_type" className="text-white">Tipo de Ansiedade</Label>
               <Select value={formData.anxiety_type} onValueChange={(value) => setFormData({ ...formData, anxiety_type: value })}>
-                <SelectTrigger className="bg-slate-900 border-purple-500/20 text-white">
+                <SelectTrigger className="bg-slate-900/50 border-purple-500/20 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1848,9 +1684,9 @@ export default function AdminDashboard() {
                 id="is_premium"
                 checked={formData.is_premium}
                 onChange={(e) => setFormData({ ...formData, is_premium: e.target.checked })}
-                className="rounded"
+                className="w-4 h-4"
               />
-              <Label htmlFor="is_premium" className="text-gray-300">Usuário Premium</Label>
+              <Label htmlFor="is_premium" className="text-white">Usuário Premium</Label>
             </div>
           </div>
           <DialogFooter>
@@ -1870,43 +1706,42 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle className="text-white">Editar Usuário</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Atualize os dados do usuário
+              Atualize as informações do usuário
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="edit_name" className="text-gray-300">Nome</Label>
+              <Label htmlFor="edit_name" className="text-white">Nome</Label>
               <Input
                 id="edit_name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="edit_password" className="text-gray-300">Nova Senha (deixe em branco para manter a atual)</Label>
+              <Label htmlFor="edit_email" className="text-white">E-mail</Label>
               <Input
-                id="edit_password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="bg-slate-900 border-purple-500/20 text-white"
-                placeholder="Digite a nova senha"
+                id="edit_email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="edit_city" className="text-gray-300">Cidade</Label>
+              <Label htmlFor="edit_city" className="text-white">Cidade</Label>
               <Input
                 id="edit_city"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="edit_anxiety_type" className="text-gray-300">Tipo de Ansiedade</Label>
+              <Label htmlFor="edit_anxiety_type" className="text-white">Tipo de Ansiedade</Label>
               <Select value={formData.anxiety_type} onValueChange={(value) => setFormData({ ...formData, anxiety_type: value })}>
-                <SelectTrigger className="bg-slate-900 border-purple-500/20 text-white">
+                <SelectTrigger className="bg-slate-900/50 border-purple-500/20 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1922,9 +1757,9 @@ export default function AdminDashboard() {
                 id="edit_is_premium"
                 checked={formData.is_premium}
                 onChange={(e) => setFormData({ ...formData, is_premium: e.target.checked })}
-                className="rounded"
+                className="w-4 h-4"
               />
-              <Label htmlFor="edit_is_premium" className="text-gray-300">Usuário Premium</Label>
+              <Label htmlFor="edit_is_premium" className="text-white">Usuário Premium</Label>
             </div>
           </div>
           <DialogFooter>
@@ -1944,32 +1779,28 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle className="text-white">Adicionar Dados de Doutor</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Preencha as informações profissionais do doutor
+              Adicione informações profissionais do doutor
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-500/10">
-              <p className="text-white font-semibold mb-1">{selectedUser?.name}</p>
-              <p className="text-gray-400 text-sm">{selectedUser?.email}</p>
-            </div>
             <div>
-              <Label htmlFor="specialty" className="text-gray-300">Especialidade *</Label>
+              <Label htmlFor="specialty" className="text-white">Especialidade</Label>
               <Input
                 id="specialty"
                 value={doctorFormData.specialty}
                 onChange={(e) => setDoctorFormData({ ...doctorFormData, specialty: e.target.value })}
-                placeholder="Ex: Psiquiatria, Psicologia"
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
+                placeholder="Ex: Psiquiatra, Psicólogo"
               />
             </div>
             <div>
-              <Label htmlFor="crm" className="text-gray-300">CRM/CRP *</Label>
+              <Label htmlFor="crm" className="text-white">CRM</Label>
               <Input
                 id="crm"
                 value={doctorFormData.crm}
                 onChange={(e) => setDoctorFormData({ ...doctorFormData, crm: e.target.value })}
-                placeholder="Ex: CRM 12345/SP"
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
+                placeholder="Ex: CRM/SP 123456"
               />
             </div>
           </div>
@@ -1984,46 +1815,27 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Adicionar Paciente via Código de Acesso */}
+      {/* Modal: Adicionar Paciente */}
       <Dialog open={showAddPatient} onOpenChange={setShowAddPatient}>
         <DialogContent className="bg-slate-800 border-purple-500/20">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Key className="w-5 h-5" />
-              Adicionar Paciente
-            </DialogTitle>
+            <DialogTitle className="text-white">Adicionar Paciente</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Digite o código de acesso do paciente para vinculá-lo a este doutor
+              Vincule um paciente ao doutor usando o código de acesso
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {selectedDoctor && (
-              <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-500/10">
-                <p className="text-white font-semibold mb-1">
-                  {users.find(u => u.id === selectedDoctor.user_id)?.name}
-                </p>
-                <div className="flex gap-2 mt-2">
-                  <Badge variant="outline" className="border-blue-500/20 text-blue-400">
-                    {selectedDoctor.specialty}
-                  </Badge>
-                  <Badge variant="outline" className="border-green-500/20 text-green-400">
-                    {selectedDoctor.crm}
-                  </Badge>
-                </div>
-              </div>
-            )}
             <div>
-              <Label htmlFor="access_code" className="text-gray-300">Código de Acesso do Paciente *</Label>
+              <Label htmlFor="patient_code" className="text-white">Código de Acesso do Paciente</Label>
               <Input
-                id="access_code"
+                id="patient_code"
                 value={patientAccessCode}
-                onChange={(e) => setPatientAccessCode(e.target.value.toUpperCase())}
+                onChange={(e) => setPatientAccessCode(e.target.value)}
+                className="bg-slate-900/50 border-purple-500/20 text-white font-mono"
                 placeholder="Ex: ABC12345"
-                className="bg-slate-900 border-purple-500/20 text-white font-mono text-lg"
-                maxLength={8}
               />
-              <p className="text-xs text-gray-500 mt-2">
-                O paciente pode encontrar seu código de acesso no perfil dele
+              <p className="text-xs text-gray-500 mt-1">
+                Digite o código de acesso único do paciente
               </p>
             </div>
           </div>
@@ -2032,7 +1844,7 @@ export default function AdminDashboard() {
               Cancelar
             </Button>
             <Button onClick={handleAddPatient} className="bg-purple-600 hover:bg-purple-700">
-              Adicionar Paciente
+              Vincular Paciente
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2040,64 +1852,61 @@ export default function AdminDashboard() {
 
       {/* Modal: Upload de Vídeo */}
       <Dialog open={showUploadVideo} onOpenChange={setShowUploadVideo}>
-        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-2xl">
+        <DialogContent className="bg-slate-800 border-purple-500/20">
           <DialogHeader>
             <DialogTitle className="text-white">Adicionar Vídeo de Meditação</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Preencha as informações do vídeo
+              Adicione um novo vídeo de meditação ao app
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="video_title" className="text-gray-300">Título *</Label>
+              <Label htmlFor="video_title" className="text-white">Título</Label>
               <Input
                 id="video_title"
                 value={videoFormData.title}
                 onChange={(e) => setVideoFormData({ ...videoFormData, title: e.target.value })}
-                placeholder="Ex: Meditação para Ansiedade"
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="video_description" className="text-gray-300">Descrição</Label>
+              <Label htmlFor="video_description" className="text-white">Descrição</Label>
               <Textarea
                 id="video_description"
                 value={videoFormData.description}
                 onChange={(e) => setVideoFormData({ ...videoFormData, description: e.target.value })}
-                placeholder="Descreva o conteúdo do vídeo..."
-                className="bg-slate-900 border-purple-500/20 text-white min-h-[100px]"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
+                rows={3}
               />
             </div>
             <div>
-              <Label htmlFor="video_url" className="text-gray-300">URL do Vídeo *</Label>
+              <Label htmlFor="video_url" className="text-white">URL do Vídeo</Label>
               <Input
                 id="video_url"
                 value={videoFormData.video_url}
                 onChange={(e) => setVideoFormData({ ...videoFormData, video_url: e.target.value })}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="bg-slate-900 border-purple-500/20 text-white"
+                className="bg-slate-900/50 border-purple-500/20 text-white"
+                placeholder="https://..."
               />
-              <p className="text-xs text-gray-500 mt-1">Cole a URL do YouTube, Vimeo ou outro serviço</p>
             </div>
             <div>
-              <Label htmlFor="thumbnail_url" className="text-gray-300">URL da Thumbnail (opcional)</Label>
+              <Label htmlFor="thumbnail_url" className="text-white">URL da Thumbnail</Label>
               <Input
                 id="thumbnail_url"
                 value={videoFormData.thumbnail_url}
                 onChange={(e) => setVideoFormData({ ...videoFormData, thumbnail_url: e.target.value })}
+                className="bg-slate-900/50 border-purple-500/20 text-white"
                 placeholder="https://..."
-                className="bg-slate-900 border-purple-500/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="duration" className="text-gray-300">Duração (em segundos)</Label>
+              <Label htmlFor="duration" className="text-white">Duração (minutos)</Label>
               <Input
                 id="duration"
                 type="number"
                 value={videoFormData.duration}
-                onChange={(e) => setVideoFormData({ ...videoFormData, duration: parseInt(e.target.value) || 0 })}
-                placeholder="Ex: 600 (para 10 minutos)"
-                className="bg-slate-900 border-purple-500/20 text-white"
+                onChange={(e) => setVideoFormData({ ...videoFormData, duration: parseInt(e.target.value) })}
+                className="bg-slate-900/50 border-purple-500/20 text-white"
               />
             </div>
           </div>
@@ -2112,232 +1921,37 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Gerar Faturas Mensais */}
+      {/* Modal: Gerar Faturas */}
       <Dialog open={showGenerateInvoices} onOpenChange={setShowGenerateInvoices}>
         <DialogContent className="bg-slate-800 border-purple-500/20">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5" />
-              Gerar Faturas Mensais
-            </DialogTitle>
+            <DialogTitle className="text-white">Gerar Faturas Mensais</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Confirme a geração automática de faturas para todos os usuários
+              Gerar faturas automáticas para todos os usuários premium
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-500/10">
-              <h4 className="text-white font-semibold mb-3">Detalhes da Geração:</h4>
-              <ul className="space-y-2 text-sm text-gray-300">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span>Usuários normais: <strong>R$ 34,90</strong></span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-blue-400" />
-                  <span>Doutores: <strong>R$ 24,90</strong> (desconto de R$ 10,00)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-yellow-400" />
-                  <span>Total de usuários: <strong>{users.length}</strong></span>
-                </li>
-              </ul>
-            </div>
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-              <p className="text-yellow-400 text-sm">
-                ⚠️ Faturas pendentes existentes não serão duplicadas. Apenas usuários sem faturas pendentes receberão novas cobranças.
+              <p className="text-white mb-2">
+                <strong>Usuários Premium:</strong> {stats.premiumUsers}
+              </p>
+              <p className="text-white mb-2">
+                <strong>Valor por Fatura:</strong> R$ 29,90
+              </p>
+              <p className="text-white">
+                <strong>Total a Faturar:</strong> {formatCurrency(stats.premiumUsers * 29.90)}
               </p>
             </div>
+            <p className="text-gray-400 text-sm">
+              Isso criará uma fatura pendente para cada usuário premium no sistema.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowGenerateInvoices(false)} className="border-purple-500/20">
               Cancelar
             </Button>
-            <Button onClick={handleGenerateMonthlyInvoices} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={handleGenerateInvoices} className="bg-green-600 hover:bg-green-700">
               Gerar Faturas
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal: Relatório Detalhado do Paciente - VERSÃO COMPLETA */}
-      <Dialog open={showPatientReport} onOpenChange={setShowPatientReport}>
-        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Relatório Detalhado do Paciente
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Histórico completo de atividades e interações do paciente
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedPatientForReport && (
-            <div className="space-y-6">
-              {/* Informações do Paciente */}
-              <div className="bg-slate-900/50 p-6 rounded-lg border border-purple-500/10">
-                <h3 className="text-white font-semibold text-xl mb-4">{selectedPatientForReport.name}</h3>
-                <div className="grid md:grid-cols-3 gap-6 text-sm">
-                  <div>
-                    <p className="text-gray-400 mb-1">E-mail:</p>
-                    <p className="text-white font-medium">{selectedPatientForReport.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 mb-1">Cidade:</p>
-                    <p className="text-white font-medium">{selectedPatientForReport.city || 'Não informada'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 mb-1">Tipo de Ansiedade:</p>
-                    <p className="text-white font-medium capitalize">
-                      {selectedPatientForReport.anxiety_type === 'social' && 'Social'}
-                      {selectedPatientForReport.anxiety_type === 'panic' && 'Pânico'}
-                      {selectedPatientForReport.anxiety_type === 'general' && 'Generalizada'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 mb-1">Código de Acesso:</p>
-                    <Badge variant="outline" className="font-mono border-purple-500/20 text-white">
-                      {selectedPatientForReport.access_code}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 mb-1">Status:</p>
-                    <Badge variant={selectedPatientForReport.is_premium ? 'default' : 'secondary'} className={selectedPatientForReport.is_premium ? 'bg-green-500' : ''}>
-                      {selectedPatientForReport.is_premium ? 'Premium' : 'Padrão'}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 mb-1">Cadastrado em:</p>
-                    <p className="text-white font-medium">{formatDateOnly(selectedPatientForReport.created_at)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Estatísticas Rápidas */}
-              <div className="grid md:grid-cols-3 gap-4">
-                <Card className="bg-slate-900/50 border-purple-500/10">
-                  <CardContent className="pt-6 text-center">
-                    <Activity className="w-8 h-8 mx-auto mb-2 text-purple-400" />
-                    <p className="text-3xl font-bold text-white">{patientActivities.length}</p>
-                    <p className="text-sm text-gray-400">Atividades Realizadas</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-slate-900/50 border-purple-500/10">
-                  <CardContent className="pt-6 text-center">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2 text-blue-400" />
-                    <p className="text-3xl font-bold text-white">{patientComments.length}</p>
-                    <p className="text-sm text-gray-400">Comentários Feitos</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-slate-900/50 border-purple-500/10">
-                  <CardContent className="pt-6 text-center">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400" />
-                    <p className="text-3xl font-bold text-white">
-                      {patientComments.filter((c: any) => c.is_approved).length}
-                    </p>
-                    <p className="text-sm text-gray-400">Comentários Aprovados</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Histórico de Atividades - VERSÃO EXPANDIDA */}
-              <div>
-                <h4 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-purple-400" />
-                  Histórico Completo de Atividades ({patientActivities.length})
-                </h4>
-                {patientActivities.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-900/50 rounded-lg border border-purple-500/10">
-                    <Activity className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                    <p className="text-gray-400">Nenhuma atividade registrada ainda.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                    {patientActivities.map((activity: any) => (
-                      <div
-                        key={activity.id}
-                        className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-colors"
-                      >
-                        <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-2xl">
-                          {getActivityIcon(activity.activity_type)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="text-xs border-purple-500/20 text-purple-400">
-                              {getActivityCategoryLabel(activity.activity_type)}
-                            </Badge>
-                            <span className="text-xs text-gray-500">{formatDate(activity.created_at)}</span>
-                          </div>
-                          <p className="text-white font-medium mb-1">{activity.activity_description}</p>
-                          <p className="text-sm text-gray-400">
-                            Tipo: <span className="text-gray-300">{activity.activity_type}</span>
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Comentários do Paciente - VERSÃO EXPANDIDA */}
-              <div>
-                <h4 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-blue-400" />
-                  Todos os Comentários em Vídeos ({patientComments.length})
-                </h4>
-                {patientComments.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-900/50 rounded-lg border border-purple-500/10">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                    <p className="text-gray-400">Nenhum comentário registrado ainda.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                    {patientComments.map((comment: any) => (
-                      <div
-                        key={comment.id}
-                        className="p-4 bg-slate-900/50 rounded-lg border border-purple-500/10"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Badge className={comment.is_approved ? 'bg-green-500' : 'bg-yellow-500'}>
-                              {comment.is_approved ? (
-                                <>
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Aprovado
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  Pendente
-                                </>
-                              )}
-                            </Badge>
-                            <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-400 mb-3">
-                          <strong className="text-blue-400">Vídeo:</strong> {comment.meditation_videos?.title || 'Vídeo desconhecido'}
-                        </p>
-                        <div className="bg-slate-800/50 p-3 rounded border border-purple-500/10">
-                          <p className="text-white leading-relaxed">{comment.comment_text}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPatientReport(false)} 
-              className="border-purple-500/20"
-            >
-              Fechar Relatório
             </Button>
           </DialogFooter>
         </DialogContent>
