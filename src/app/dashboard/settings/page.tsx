@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Mail, Server, Lock, User } from 'lucide-react'
+import { ArrowLeft, Save, User, Mail, Phone, MapPin, Calendar, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,24 +13,57 @@ export default function SettingsPage() {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   
-  const [smtpConfig, setSmtpConfig] = useState({
-    host: 'smtp.titan.email',
-    port: '465',
-    secure: true,
-    user: 'suporte@zentiamind.com.br',
-    password: ''
+  const [userData, setUserData] = useState({
+    name: 'João Silva',
+    email: 'joao.silva@email.com',
+    phone: '(11) 98765-4321',
+    birthDate: '1990-05-15',
+    address: 'Rua das Flores, 123',
+    city: 'São Paulo',
+    state: 'SP',
+    zipCode: '01234-567'
   })
 
-  const handleSave = async () => {
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+
+  const handleSaveProfile = async () => {
     setIsSaving(true)
     try {
-      // Aqui você pode salvar as configurações no banco ou em variáveis de ambiente
-      // Por enquanto, apenas mostra uma mensagem de sucesso
+      // Aqui você pode salvar os dados do usuário no banco
       await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Configurações salvas com sucesso!')
+      toast.success('Dados atualizados com sucesso!')
     } catch (error) {
-      console.error('Erro ao salvar configurações:', error)
-      toast.error('Erro ao salvar configurações')
+      console.error('Erro ao salvar dados:', error)
+      toast.error('Erro ao salvar dados')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('As senhas não coincidem')
+      return
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error('A senha deve ter no mínimo 6 caracteres')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      // Aqui você pode atualizar a senha no banco
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      toast.success('Senha alterada com sucesso!')
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (error) {
+      console.error('Erro ao alterar senha:', error)
+      toast.error('Erro ao alterar senha')
     } finally {
       setIsSaving(false)
     }
@@ -44,92 +77,132 @@ export default function SettingsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/dashboard')}
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Server className="w-8 h-8 text-blue-600" />
-              Configurações SMTP
+              <User className="w-8 h-8 text-blue-600" />
+              Configurações da Conta
             </h1>
             <p className="text-muted-foreground mt-1">
-              Configure o servidor de e-mail para envios automáticos
+              Gerencie seus dados pessoais e preferências
             </p>
           </div>
         </div>
 
-        {/* SMTP Configuration Card */}
-        <Card>
+        {/* Personal Information Card */}
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Servidor SMTP
+              <User className="w-5 h-5" />
+              Informações Pessoais
             </CardTitle>
             <CardDescription>
-              Configure as credenciais do servidor de e-mail (Titan, Gmail, Outlook, etc.)
+              Atualize seus dados pessoais e informações de contato
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="smtp-host">Host SMTP</Label>
+                <Label htmlFor="name">Nome Completo</Label>
                 <Input
-                  id="smtp-host"
-                  value={smtpConfig.host}
-                  onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
-                  placeholder="smtp.titan.email"
+                  id="name"
+                  value={userData.name}
+                  onChange={(e) => setUserData({ ...userData, name: e.target.value })}
+                  placeholder="Seu nome completo"
                 />
               </div>
               <div>
-                <Label htmlFor="smtp-port">Porta</Label>
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  E-mail
+                </Label>
                 <Input
-                  id="smtp-port"
-                  value={smtpConfig.port}
-                  onChange={(e) => setSmtpConfig({ ...smtpConfig, port: e.target.value })}
-                  placeholder="465"
+                  id="email"
+                  type="email"
+                  value={userData.email}
+                  onChange={(e) => setUserData({ ...userData, email: e.target.value })}
+                  placeholder="seu@email.com"
+                />
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone" className="flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  Telefone
+                </Label>
+                <Input
+                  id="phone"
+                  value={userData.phone}
+                  onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+              <div>
+                <Label htmlFor="birthDate" className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Data de Nascimento
+                </Label>
+                <Input
+                  id="birthDate"
+                  type="date"
+                  value={userData.birthDate}
+                  onChange={(e) => setUserData({ ...userData, birthDate: e.target.value })}
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="smtp-user" className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Usuário (E-mail)
+              <Label htmlFor="address" className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Endereço
               </Label>
               <Input
-                id="smtp-user"
-                type="email"
-                value={smtpConfig.user}
-                onChange={(e) => setSmtpConfig({ ...smtpConfig, user: e.target.value })}
-                placeholder="seu@email.com"
+                id="address"
+                value={userData.address}
+                onChange={(e) => setUserData({ ...userData, address: e.target.value })}
+                placeholder="Rua, número, complemento"
               />
             </div>
 
-            <div>
-              <Label htmlFor="smtp-password" className="flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                Senha
-              </Label>
-              <Input
-                id="smtp-password"
-                type="password"
-                value={smtpConfig.password}
-                onChange={(e) => setSmtpConfig({ ...smtpConfig, password: e.target.value })}
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Configuração Atual:</strong> Titan Email (HostGator) - suporte@zentiamind.com.br
-              </p>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={userData.city}
+                  onChange={(e) => setUserData({ ...userData, city: e.target.value })}
+                  placeholder="Cidade"
+                />
+              </div>
+              <div>
+                <Label htmlFor="state">Estado</Label>
+                <Input
+                  id="state"
+                  value={userData.state}
+                  onChange={(e) => setUserData({ ...userData, state: e.target.value })}
+                  placeholder="UF"
+                  maxLength={2}
+                />
+              </div>
+              <div>
+                <Label htmlFor="zipCode">CEP</Label>
+                <Input
+                  id="zipCode"
+                  value={userData.zipCode}
+                  onChange={(e) => setUserData({ ...userData, zipCode: e.target.value })}
+                  placeholder="00000-000"
+                />
+              </div>
             </div>
 
             <div className="pt-4">
               <Button 
-                onClick={handleSave} 
+                onClick={handleSaveProfile} 
                 className="w-full"
                 disabled={isSaving}
               >
@@ -141,7 +214,7 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Salvar Configurações
+                    Salvar Alterações
                   </>
                 )}
               </Button>
@@ -149,69 +222,77 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Info Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mt-6">
-          <Card className="bg-gradient-to-br from-green-500 to-emerald-500 text-white border-0">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <Mail className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">Ativo</p>
-                  <p className="text-green-100">Servidor SMTP Conectado</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-0">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <Server className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">SSL/TLS</p>
-                  <p className="text-blue-100">Conexão Segura</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Help Section */}
-        <Card className="mt-6">
+        {/* Password Change Card */}
+        <Card>
           <CardHeader>
-            <CardTitle>💡 Guia de Configuração</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              Alterar Senha
+            </CardTitle>
+            <CardDescription>
+              Mantenha sua conta segura atualizando sua senha regularmente
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold mb-2">Titan Email (HostGator)</h3>
-              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                <li>• Host: smtp.titan.email</li>
-                <li>• Porta: 465 (SSL) ou 587 (TLS)</li>
-                <li>• Usuário: seu@dominio.com.br</li>
-              </ul>
+              <Label htmlFor="currentPassword">Senha Atual</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                placeholder="Digite sua senha atual"
+              />
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2">Gmail</h3>
-              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                <li>• Host: smtp.gmail.com</li>
-                <li>• Porta: 465 (SSL) ou 587 (TLS)</li>
-                <li>• Usuário: seu@gmail.com</li>
-                <li>• Senha: Use senha de app (não a senha normal)</li>
-              </ul>
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                placeholder="Digite sua nova senha"
+              />
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2">Outlook/Hotmail</h3>
-              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                <li>• Host: smtp-mail.outlook.com</li>
-                <li>• Porta: 587 (TLS)</li>
-                <li>• Usuário: seu@outlook.com ou seu@hotmail.com</li>
-              </ul>
+              <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                placeholder="Confirme sua nova senha"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+              <div className="w-2 h-2 bg-amber-600 rounded-full"></div>
+              <p className="text-sm text-amber-900 dark:text-amber-100">
+                A senha deve ter no mínimo 6 caracteres
+              </p>
+            </div>
+
+            <div className="pt-4">
+              <Button 
+                onClick={handleChangePassword} 
+                className="w-full"
+                disabled={isSaving}
+                variant="outline"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                    Alterando...
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-4 h-4 mr-2" />
+                    Alterar Senha
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>

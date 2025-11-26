@@ -1047,12 +1047,12 @@ export default function AdminDashboard() {
               Templates
             </Button>
             <Button
-              onClick={() => router.push('/dashboard/settings')}
+              onClick={() => router.push('/admin/dashboard/smtp')}
               variant="outline"
               className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
             >
-              <Settings className="w-4 h-4" />
-              Configurações
+              <Server className="w-4 h-4" />
+              SMTP
             </Button>
             <Button
               onClick={handleLogout}
