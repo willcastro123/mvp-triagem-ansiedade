@@ -1,131 +1,97 @@
+/**
+ * Utilitários para integração com Hotmart
+ */
+
 export interface HotmartWebhookData {
+  id: string
   event: string
+  version: string
+  date: number
   data: {
+    product: {
+      id: number
+      name: string
+    }
     buyer: {
       email: string
       name: string
-      phone?: string
-    }
-    product: {
-      id: string
-      name: string
+      checkout_phone?: string
     }
     purchase: {
-      status: string
       transaction: string
-      order_date: string
-      approved_date?: string
+      status: string
+      approved_date?: number
+      order_date: number
+      price: {
+        value: number
+        currency_code: string
+      }
+    }
+    subscription?: {
+      subscriber: {
+        code: string
+      }
+      status: string
     }
   }
 }
 
-// Função helper para criar cliente Supabase em runtime
-async function getSupabaseAdmin() {
-  const { createClient } = await import('@supabase/supabase-js')
+/**
+ * Valida o Hottok de segurança da Hotmart
+ */
+export function validateHottok(hottok: string | null): boolean {
+  const expectedHottok = process.env.HOTMART_HOTTOK
   
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Variáveis de ambiente do Supabase não configuradas')
+  if (!expectedHottok) {
+    console.error('❌ HOTMART_HOTTOK não configurado')
+    return false
   }
 
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
+  return hottok === expectedHottok
 }
 
-export async function processHotmartPurchase(webhookData: HotmartWebhookData) {
-  try {
-    const supabaseAdmin = await getSupabaseAdmin()
-    const { buyer, purchase } = webhookData.data
+/**
+ * Verifica se o evento é de compra aprovada
+ */
+export function isPurchaseApproved(data: HotmartWebhookData): boolean {
+  const approvedEvents = [
+    'PURCHASE_APPROVED',
+    'PURCHASE_COMPLETE',
+    'SUBSCRIPTION_PAYMENT_APPROVED'
+  ]
+  
+  return approvedEvents.includes(data.event)
+}
 
-    // Verifica se o pagamento foi aprovado
-    if (purchase.status !== 'approved' && purchase.status !== 'complete') {
-      return {
-        success: false,
-        message: 'Pagamento ainda não aprovado'
-      }
-    }
-
-    // Verifica se o usuário já existe
-    const { data: existingUser } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('email', buyer.email)
-      .single()
-
-    if (existingUser) {
-      // Atualiza para premium se já existe
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({
-          is_premium: true,
-          premium_activated_at: new Date().toISOString(),
-          hotmart_transaction: purchase.transaction
-        })
-        .eq('email', buyer.email)
-
-      if (updateError) {
-        console.error('Erro ao atualizar usuário:', updateError)
-        return {
-          success: false,
-          message: 'Erro ao atualizar conta'
-        }
-      }
-
-      return {
-        success: true,
-        message: 'Acesso premium ativado para usuário existente',
-        userId: existingUser.id
-      }
-    }
-
-    // Cria novo usuário com acesso premium
-    const { data: newUser, error: createError } = await supabaseAdmin
-      .from('users')
-      .insert({
-        email: buyer.email,
-        name: buyer.name,
-        phone: buyer.phone || null,
-        is_premium: true,
-        premium_activated_at: new Date().toISOString(),
-        hotmart_transaction: purchase.transaction,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single()
-
-    if (createError) {
-      console.error('Erro ao criar usuário:', createError)
-      return {
-        success: false,
-        message: 'Erro ao criar conta'
-      }
-    }
-
-    // Aqui você pode adicionar lógica para enviar email de boas-vindas
-    // await sendWelcomeEmail(buyer.email, buyer.name)
-
-    return {
-      success: true,
-      message: 'Conta criada e acesso premium ativado',
-      userId: newUser.id
-    }
-  } catch (error) {
-    console.error('Erro ao processar compra:', error)
-    return {
-      success: false,
-      message: 'Erro interno ao processar compra'
-    }
+/**
+ * Extrai dados do comprador do webhook
+ */
+export function extractBuyerData(data: HotmartWebhookData) {
+  return {
+    email: data.data.buyer.email,
+    name: data.data.buyer.name,
+    phone: data.data.buyer.checkout_phone || null,
+    transaction: data.data.purchase.transaction,
+    productId: data.data.product.id,
+    productName: data.data.product.name,
+    price: data.data.purchase.price.value,
+    currency: data.data.purchase.price.currency_code,
+    approvedDate: data.data.purchase.approved_date || data.data.purchase.order_date,
+    subscriptionCode: data.data.subscription?.subscriber.code || null
   }
 }
 
-export function validateHotmartWebhook(headers: Headers, body: string): boolean {
-  // Aqui você pode adicionar validação de assinatura da Hotmart
-  // Por enquanto, retorna true (em produção, implemente a validação)
-  return true
+/**
+ * Gera senha aleatória segura
+ */
+export function generateSecurePassword(length: number = 16): string {
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+  let password = ''
+  
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length)
+    password += charset[randomIndex]
+  }
+  
+  return password
 }
