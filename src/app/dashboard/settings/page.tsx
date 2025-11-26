@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Settings, User, Bell, Lock, Palette } from 'lucide-react'
+import { ArrowLeft, Settings, User, Bell, Lock, Palette, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { type UserProfile } from '@/lib/supabase'
 
@@ -18,6 +19,8 @@ export default function SettingsPage() {
     email: '',
     phone: ''
   })
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+  const [isRequestingReset, setIsRequestingReset] = useState(false)
 
   useEffect(() => {
     const userStr = localStorage.getItem('user')
@@ -43,6 +46,47 @@ export default function SettingsPage() {
       localStorage.setItem('user', JSON.stringify(updatedUser))
       setUser(updatedUser)
       toast.success('Configurações salvas com sucesso!')
+    }
+  }
+
+  const handleRequestPasswordReset = async () => {
+    if (!user?.email) {
+      toast.error('E-mail não encontrado')
+      return
+    }
+
+    setIsRequestingReset(true)
+
+    try {
+      const response = await fetch('/api/request-password-reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: user.email }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('E-mail de redefinição enviado! Verifique sua caixa de entrada.')
+        
+        // Em desenvolvimento, mostrar o link
+        if (data.resetLink) {
+          toast.info('Link de desenvolvimento: ' + data.resetLink, {
+            duration: 10000,
+          })
+        }
+        
+        setIsPasswordDialogOpen(false)
+      } else {
+        toast.error(data.error || 'Erro ao solicitar redefinição de senha')
+      }
+    } catch (error) {
+      console.error('Erro:', error)
+      toast.error('Erro ao processar solicitação')
+    } finally {
+      setIsRequestingReset(false)
     }
   }
 
@@ -157,9 +201,46 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <Button variant="outline" className="w-full justify-start">
-                  Alterar Senha
-                </Button>
+                <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Lock className="w-4 h-4 mr-2" />
+                      Alterar Senha
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Mail className="w-5 h-5" />
+                        Alterar Senha
+                      </DialogTitle>
+                      <DialogDescription>
+                        Enviaremos um e-mail com instruções para redefinir sua senha de forma segura.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                          <strong>E-mail cadastrado:</strong> {user.email}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Ao clicar em "Enviar E-mail", você receberá um link seguro para criar uma nova senha. 
+                          O link será válido por 1 hora.
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={handleRequestPasswordReset}
+                        disabled={isRequestingReset}
+                        className="w-full"
+                      >
+                        {isRequestingReset ? 'Enviando...' : 'Enviar E-mail de Redefinição'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                
                 <Button variant="outline" className="w-full justify-start">
                   Exportar Meus Dados
                 </Button>

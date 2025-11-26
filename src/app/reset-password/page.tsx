@@ -1,23 +1,35 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Heart, Lock, CheckCircle } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Heart, Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { createClient } from '@/lib/supabase'
 import { toast } from 'sonner'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token')
+  
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!token) {
+      setTokenValid(false)
+      setError('Token de redefinição não encontrado')
+    } else {
+      setTokenValid(true)
+    }
+  }, [token])
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,25 +49,60 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.updateUser({
-        password: password,
+      const response = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token,
+          newPassword: password,
+        }),
       })
 
-      if (error) throw error
+      const data = await response.json()
 
-      setSuccess(true)
-      toast.success('Senha alterada com sucesso!')
-      
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+      if (response.ok) {
+        setSuccess(true)
+        toast.success('Senha alterada com sucesso!')
+        
+        setTimeout(() => {
+          router.push('/login')
+        }, 2000)
+      } else {
+        setError(data.error || 'Erro ao redefinir senha')
+        toast.error(data.error || 'Erro ao redefinir senha')
+      }
     } catch (err: any) {
       setError(err.message || 'Erro ao redefinir senha')
       toast.error('Erro ao redefinir senha')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (tokenValid === false) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-2xl">
+          <CardHeader className="text-center space-y-2">
+            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl">Link Inválido</CardTitle>
+            <CardDescription>Este link de redefinição é inválido ou expirou</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={() => router.push('/login')}
+              className="w-full"
+            >
+              Voltar para o Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -96,8 +143,10 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
                     required
+                    minLength={6}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
               </div>
 
               <div className="space-y-2">
@@ -112,6 +161,7 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="pl-10"
                     required
+                    minLength={6}
                   />
                 </div>
               </div>
@@ -122,6 +172,15 @@ export default function ResetPasswordPage() {
                 disabled={isLoading}
               >
                 {isLoading ? 'Alterando senha...' : 'Alterar Senha'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/login')}
+                className="w-full"
+              >
+                Voltar para o Login
               </Button>
             </form>
           )}
