@@ -75,9 +75,8 @@ interface Invoice {
   user_id: string;
   amount: number;
   status: 'pending' | 'paid' | 'unpaid';
-  due_date: string;
-  paid_date?: string;
-  description: string;
+  payment_method?: string;
+  paid_at?: string;
   created_at: string;
   user_name?: string;
   user_email?: string;
@@ -693,22 +692,16 @@ export default function AdminDashboard() {
     try {
       const { supabase } = await import('@/lib/supabase');
 
-      // Obter data atual e calcular vencimento (próximo mês)
-      const now = new Date();
-      const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 10); // Vencimento dia 10 do próximo mês
-      const dueDateStr = dueDate.toISOString().split('T')[0];
-
       const invoicesToCreate = [];
 
       // Gerar faturas para todos os usuários
       for (const user of users) {
-        // Verificar se já existe fatura pendente para este usuário neste mês
+        // Verificar se já existe fatura pendente para este usuário
         const { data: existingInvoice } = await supabase
           .from('invoices')
           .select('id')
           .eq('user_id', user.id)
           .eq('status', 'pending')
-          .gte('due_date', now.toISOString().split('T')[0])
           .single();
 
         if (existingInvoice) {
@@ -724,9 +717,7 @@ export default function AdminDashboard() {
         invoicesToCreate.push({
           user_id: user.id,
           amount: amount,
-          status: 'pending',
-          due_date: dueDateStr,
-          description: `Mensalidade ${now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })} - ${isDoctor ? 'Plano Doutor' : 'Plano Padrão'}`
+          status: 'pending'
         });
       }
 
@@ -763,7 +754,7 @@ export default function AdminDashboard() {
         .from('invoices')
         .update({
           status: 'paid',
-          paid_date: new Date().toISOString()
+          paid_at: new Date().toISOString()
         })
         .eq('id', invoiceId);
 
@@ -1227,8 +1218,7 @@ export default function AdminDashboard() {
                           <TableHead className="text-gray-300">Usuário</TableHead>
                           <TableHead className="text-gray-300">E-mail</TableHead>
                           <TableHead className="text-gray-300">Valor</TableHead>
-                          <TableHead className="text-gray-300">Vencimento</TableHead>
-                          <TableHead className="text-gray-300">Descrição</TableHead>
+                          <TableHead className="text-gray-300">Data Criação</TableHead>
                           <TableHead className="text-gray-300">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1238,8 +1228,7 @@ export default function AdminDashboard() {
                             <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
                             <TableCell className="text-gray-300">{invoice.user_email}</TableCell>
                             <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
-                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
-                            <TableCell className="text-gray-300 text-sm">{invoice.description}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.created_at)}</TableCell>
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button
@@ -1287,7 +1276,7 @@ export default function AdminDashboard() {
                         <TableRow className="border-purple-500/20">
                           <TableHead className="text-gray-300">Usuário</TableHead>
                           <TableHead className="text-gray-300">Valor</TableHead>
-                          <TableHead className="text-gray-300">Vencimento</TableHead>
+                          <TableHead className="text-gray-300">Data Criação</TableHead>
                           <TableHead className="text-gray-300">Data Pagamento</TableHead>
                           <TableHead className="text-gray-300">Status</TableHead>
                         </TableRow>
@@ -1297,9 +1286,9 @@ export default function AdminDashboard() {
                           <TableRow key={invoice.id} className="border-purple-500/20">
                             <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
                             <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
-                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.created_at)}</TableCell>
                             <TableCell className="text-gray-300">
-                              {invoice.paid_date ? formatDate(invoice.paid_date) : '-'}
+                              {invoice.paid_at ? formatDate(invoice.paid_at) : '-'}
                             </TableCell>
                             <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                           </TableRow>
@@ -1329,7 +1318,7 @@ export default function AdminDashboard() {
                           <TableHead className="text-gray-300">Usuário</TableHead>
                           <TableHead className="text-gray-300">E-mail</TableHead>
                           <TableHead className="text-gray-300">Valor</TableHead>
-                          <TableHead className="text-gray-300">Vencimento</TableHead>
+                          <TableHead className="text-gray-300">Data Criação</TableHead>
                           <TableHead className="text-gray-300">Status</TableHead>
                           <TableHead className="text-gray-300">Ações</TableHead>
                         </TableRow>
@@ -1340,7 +1329,7 @@ export default function AdminDashboard() {
                             <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
                             <TableCell className="text-gray-300">{invoice.user_email}</TableCell>
                             <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
-                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.created_at)}</TableCell>
                             <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                             <TableCell>
                               <Button
@@ -2096,10 +2085,6 @@ export default function AdminDashboard() {
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-blue-400" />
                   <span>Doutores: <strong>R$ 24,90</strong> (desconto de R$ 10,00)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-purple-400" />
-                  <span>Vencimento: <strong>Dia 10 do próximo mês</strong></span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-yellow-400" />
