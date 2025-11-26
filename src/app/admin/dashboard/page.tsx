@@ -75,10 +75,9 @@ interface Invoice {
   user_id: string;
   amount: number;
   status: 'pending' | 'paid' | 'unpaid';
-  due_date: string;
-  paid_date?: string;
-  description: string;
+  payment_method?: string;
   created_at: string;
+  paid_at?: string;
   user_name?: string;
   user_email?: string;
 }
@@ -697,22 +696,16 @@ export default function AdminDashboard() {
     try {
       const { supabase } = await import('@/lib/supabase');
 
-      // Obter data atual e calcular vencimento (próximo mês)
-      const now = new Date();
-      const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 10); // Vencimento dia 10 do próximo mês
-      const dueDateStr = dueDate.toISOString().split('T')[0];
-
       const invoicesToCreate = [];
 
       // Gerar faturas para todos os usuários
       for (const user of users) {
-        // Verificar se já existe fatura pendente para este usuário neste mês
+        // Verificar se já existe fatura pendente para este usuário
         const { data: existingInvoice } = await supabase
           .from('invoices')
           .select('id')
           .eq('user_id', user.id)
           .eq('status', 'pending')
-          .gte('due_date', now.toISOString().split('T')[0])
           .single();
 
         if (existingInvoice) {
@@ -728,9 +721,7 @@ export default function AdminDashboard() {
         invoicesToCreate.push({
           user_id: user.id,
           amount: amount,
-          status: 'pending',
-          due_date: dueDateStr,
-          description: `Mensalidade ${now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })} - ${isDoctor ? 'Plano Doutor' : 'Plano Padrão'}`
+          status: 'pending'
         });
       }
 
@@ -767,7 +758,7 @@ export default function AdminDashboard() {
         .from('invoices')
         .update({
           status: 'paid',
-          paid_date: new Date().toISOString()
+          paid_at: new Date().toISOString()
         })
         .eq('id', invoiceId);
 
@@ -1264,8 +1255,7 @@ export default function AdminDashboard() {
                           <TableHead className="text-gray-300">Usuário</TableHead>
                           <TableHead className="text-gray-300">E-mail</TableHead>
                           <TableHead className="text-gray-300">Valor</TableHead>
-                          <TableHead className="text-gray-300">Vencimento</TableHead>
-                          <TableHead className="text-gray-300">Descrição</TableHead>
+                          <TableHead className="text-gray-300">Data Criação</TableHead>
                           <TableHead className="text-gray-300">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1275,8 +1265,7 @@ export default function AdminDashboard() {
                             <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
                             <TableCell className="text-gray-300">{invoice.user_email}</TableCell>
                             <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
-                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
-                            <TableCell className="text-gray-300 text-sm">{invoice.description}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.created_at)}</TableCell>
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button
@@ -1324,7 +1313,7 @@ export default function AdminDashboard() {
                         <TableRow className="border-purple-500/20">
                           <TableHead className="text-gray-300">Usuário</TableHead>
                           <TableHead className="text-gray-300">Valor</TableHead>
-                          <TableHead className="text-gray-300">Vencimento</TableHead>
+                          <TableHead className="text-gray-300">Data Criação</TableHead>
                           <TableHead className="text-gray-300">Data Pagamento</TableHead>
                           <TableHead className="text-gray-300">Status</TableHead>
                         </TableRow>
@@ -1334,9 +1323,9 @@ export default function AdminDashboard() {
                           <TableRow key={invoice.id} className="border-purple-500/20">
                             <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
                             <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
-                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.created_at)}</TableCell>
                             <TableCell className="text-gray-300">
-                              {invoice.paid_date ? formatDate(invoice.paid_date) : '-'}
+                              {invoice.paid_at ? formatDate(invoice.paid_at) : '-'}
                             </TableCell>
                             <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                           </TableRow>
@@ -1366,7 +1355,7 @@ export default function AdminDashboard() {
                           <TableHead className="text-gray-300">Usuário</TableHead>
                           <TableHead className="text-gray-300">E-mail</TableHead>
                           <TableHead className="text-gray-300">Valor</TableHead>
-                          <TableHead className="text-gray-300">Vencimento</TableHead>
+                          <TableHead className="text-gray-300">Data Criação</TableHead>
                           <TableHead className="text-gray-300">Status</TableHead>
                           <TableHead className="text-gray-300">Ações</TableHead>
                         </TableRow>
@@ -1377,7 +1366,7 @@ export default function AdminDashboard() {
                             <TableCell className="text-white font-medium">{invoice.user_name}</TableCell>
                             <TableCell className="text-gray-300">{invoice.user_email}</TableCell>
                             <TableCell className="text-white font-semibold">{formatCurrency(invoice.amount)}</TableCell>
-                            <TableCell className="text-gray-300">{formatDateOnly(invoice.due_date)}</TableCell>
+                            <TableCell className="text-gray-300">{formatDateOnly(invoice.created_at)}</TableCell>
                             <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                             <TableCell>
                               <Button
@@ -2148,10 +2137,6 @@ export default function AdminDashboard() {
                   <span>Doutores: <strong>R$ 24,90</strong> (desconto de R$ 10,00)</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-purple-400" />
-                  <span>Vencimento: <strong>Dia 10 do próximo mês</strong></span>
-                </li>
-                <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-yellow-400" />
                   <span>Total de usuários: <strong>{users.length}</strong></span>
                 </li>
@@ -2174,75 +2159,121 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Relatório Detalhado do Paciente */}
+      {/* Modal: Relatório Detalhado do Paciente - VERSÃO COMPLETA */}
       <Dialog open={showPatientReport} onOpenChange={setShowPatientReport}>
-        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <FileText className="w-5 h-5" />
               Relatório Detalhado do Paciente
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              Histórico completo de atividades e interações
+              Histórico completo de atividades e interações do paciente
             </DialogDescription>
           </DialogHeader>
           
           {selectedPatientForReport && (
             <div className="space-y-6">
               {/* Informações do Paciente */}
-              <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-500/10">
-                <h3 className="text-white font-semibold text-lg mb-2">{selectedPatientForReport.name}</h3>
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div className="bg-slate-900/50 p-6 rounded-lg border border-purple-500/10">
+                <h3 className="text-white font-semibold text-xl mb-4">{selectedPatientForReport.name}</h3>
+                <div className="grid md:grid-cols-3 gap-6 text-sm">
                   <div>
-                    <p className="text-gray-400">E-mail:</p>
-                    <p className="text-white">{selectedPatientForReport.email}</p>
+                    <p className="text-gray-400 mb-1">E-mail:</p>
+                    <p className="text-white font-medium">{selectedPatientForReport.email}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400">Cidade:</p>
-                    <p className="text-white">{selectedPatientForReport.city || 'Não informada'}</p>
+                    <p className="text-gray-400 mb-1">Cidade:</p>
+                    <p className="text-white font-medium">{selectedPatientForReport.city || 'Não informada'}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400">Tipo de Ansiedade:</p>
-                    <p className="text-white capitalize">{selectedPatientForReport.anxiety_type}</p>
+                    <p className="text-gray-400 mb-1">Tipo de Ansiedade:</p>
+                    <p className="text-white font-medium capitalize">
+                      {selectedPatientForReport.anxiety_type === 'social' && 'Social'}
+                      {selectedPatientForReport.anxiety_type === 'panic' && 'Pânico'}
+                      {selectedPatientForReport.anxiety_type === 'general' && 'Generalizada'}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-gray-400">Código de Acesso:</p>
-                    <Badge variant="outline" className="font-mono border-purple-500/20">
+                    <p className="text-gray-400 mb-1">Código de Acesso:</p>
+                    <Badge variant="outline" className="font-mono border-purple-500/20 text-white">
                       {selectedPatientForReport.access_code}
                     </Badge>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 mb-1">Status:</p>
+                    <Badge variant={selectedPatientForReport.is_premium ? 'default' : 'secondary'} className={selectedPatientForReport.is_premium ? 'bg-green-500' : ''}>
+                      {selectedPatientForReport.is_premium ? 'Premium' : 'Padrão'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 mb-1">Cadastrado em:</p>
+                    <p className="text-white font-medium">{formatDateOnly(selectedPatientForReport.created_at)}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Histórico de Atividades */}
+              {/* Estatísticas Rápidas */}
+              <div className="grid md:grid-cols-3 gap-4">
+                <Card className="bg-slate-900/50 border-purple-500/10">
+                  <CardContent className="pt-6 text-center">
+                    <Activity className="w-8 h-8 mx-auto mb-2 text-purple-400" />
+                    <p className="text-3xl font-bold text-white">{patientActivities.length}</p>
+                    <p className="text-sm text-gray-400">Atividades Realizadas</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-slate-900/50 border-purple-500/10">
+                  <CardContent className="pt-6 text-center">
+                    <MessageSquare className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+                    <p className="text-3xl font-bold text-white">{patientComments.length}</p>
+                    <p className="text-sm text-gray-400">Comentários Feitos</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-slate-900/50 border-purple-500/10">
+                  <CardContent className="pt-6 text-center">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400" />
+                    <p className="text-3xl font-bold text-white">
+                      {patientComments.filter((c: any) => c.is_approved).length}
+                    </p>
+                    <p className="text-sm text-gray-400">Comentários Aprovados</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Histórico de Atividades - VERSÃO EXPANDIDA */}
               <div>
-                <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <h4 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
                   <Activity className="w-5 h-5 text-purple-400" />
-                  Histórico de Atividades ({patientActivities.length})
+                  Histórico Completo de Atividades ({patientActivities.length})
                 </h4>
                 {patientActivities.length === 0 ? (
-                  <div className="text-center py-8 bg-slate-900/50 rounded-lg border border-purple-500/10">
-                    <Activity className="w-10 h-10 mx-auto mb-3 text-gray-600" />
+                  <div className="text-center py-12 bg-slate-900/50 rounded-lg border border-purple-500/10">
+                    <Activity className="w-12 h-12 mx-auto mb-4 text-gray-600" />
                     <p className="text-gray-400">Nenhuma atividade registrada ainda.</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
                     {patientActivities.map((activity: any) => (
                       <div
                         key={activity.id}
-                        className="flex items-start gap-3 p-3 bg-slate-900/50 rounded-lg border border-purple-500/10"
+                        className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-colors"
                       >
-                        <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-purple-400">
+                        <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-2xl">
                           {getActivityIcon(activity.activity_type)}
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-xs border-purple-500/20 text-gray-400">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs border-purple-500/20 text-purple-400">
                               {getActivityCategoryLabel(activity.activity_type)}
                             </Badge>
                             <span className="text-xs text-gray-500">{formatDate(activity.created_at)}</span>
                           </div>
-                          <p className="text-sm text-white">{activity.activity_description}</p>
+                          <p className="text-white font-medium mb-1">{activity.activity_description}</p>
+                          <p className="text-sm text-gray-400">
+                            Tipo: <span className="text-gray-300">{activity.activity_type}</span>
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -2250,34 +2281,48 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Comentários do Paciente */}
+              {/* Comentários do Paciente - VERSÃO EXPANDIDA */}
               <div>
-                <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <h4 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-blue-400" />
-                  Comentários em Vídeos ({patientComments.length})
+                  Todos os Comentários em Vídeos ({patientComments.length})
                 </h4>
                 {patientComments.length === 0 ? (
-                  <div className="text-center py-8 bg-slate-900/50 rounded-lg border border-purple-500/10">
-                    <MessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-600" />
+                  <div className="text-center py-12 bg-slate-900/50 rounded-lg border border-purple-500/10">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-600" />
                     <p className="text-gray-400">Nenhum comentário registrado ainda.</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                     {patientComments.map((comment: any) => (
                       <div
                         key={comment.id}
-                        className="p-3 bg-slate-900/50 rounded-lg border border-purple-500/10"
+                        className="p-4 bg-slate-900/50 rounded-lg border border-purple-500/10"
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge className={comment.is_approved ? 'bg-green-500' : 'bg-yellow-500'}>
-                            {comment.is_approved ? 'Aprovado' : 'Pendente'}
-                          </Badge>
-                          <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Badge className={comment.is_approved ? 'bg-green-500' : 'bg-yellow-500'}>
+                              {comment.is_approved ? (
+                                <>
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Aprovado
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Pendente
+                                </>
+                              )}
+                            </Badge>
+                            <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-400 mb-2">
-                          <strong>Vídeo:</strong> {comment.meditation_videos?.title || 'Vídeo desconhecido'}
+                        <p className="text-sm text-gray-400 mb-3">
+                          <strong className="text-blue-400">Vídeo:</strong> {comment.meditation_videos?.title || 'Vídeo desconhecido'}
                         </p>
-                        <p className="text-white">{comment.comment_text}</p>
+                        <div className="bg-slate-800/50 p-3 rounded border border-purple-500/10">
+                          <p className="text-white leading-relaxed">{comment.comment_text}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2287,8 +2332,12 @@ export default function AdminDashboard() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPatientReport(false)} className="border-purple-500/20">
-              Fechar
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPatientReport(false)} 
+              className="border-purple-500/20"
+            >
+              Fechar Relatório
             </Button>
           </DialogFooter>
         </DialogContent>
