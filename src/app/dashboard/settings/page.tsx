@@ -1,17 +1,20 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, User, Mail, Phone, MapPin, Calendar, Shield } from 'lucide-react'
+import { ArrowLeft, Save, User, Mail, Phone, MapPin, Calendar, Shield, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
 
 export default function SettingsPage() {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
   
   const [userData, setUserData] = useState({
     name: 'João Silva',
@@ -24,11 +27,24 @@ export default function SettingsPage() {
     zipCode: '01234-567'
   })
 
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  })
+  useEffect(() => {
+    // Carregar dados do usuário do localStorage
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      setUserEmail(user.email)
+      setUserData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        birthDate: user.birth_date || '',
+        address: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        zipCode: user.zip_code || ''
+      })
+    }
+  }, [])
 
   const handleSaveProfile = async () => {
     setIsSaving(true)
@@ -44,28 +60,58 @@ export default function SettingsPage() {
     }
   }
 
-  const handleChangePassword = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('As senhas não coincidem')
+  const handleRequestPasswordReset = async () => {
+    if (!userEmail) {
+      toast.error('E-mail não encontrado')
       return
     }
 
-    if (passwordData.newPassword.length < 6) {
-      toast.error('A senha deve ter no mínimo 6 caracteres')
-      return
-    }
-
-    setIsSaving(true)
+    setIsSendingEmail(true)
     try {
-      // Aqui você pode atualizar a senha no banco
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Senha alterada com sucesso!')
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
-    } catch (error) {
-      console.error('Erro ao alterar senha:', error)
-      toast.error('Erro ao alterar senha')
+      // Gerar token único para reset de senha
+      const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      const resetExpiry = new Date(Date.now() + 3600000).toISOString() // 1 hora de validade
+
+      // Salvar token no banco de dados
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({ 
+          reset_token: resetToken,
+          reset_token_expiry: resetExpiry
+        })
+        .eq('email', userEmail)
+
+      if (updateError) {
+        console.error('Erro ao salvar token:', updateError)
+        throw updateError
+      }
+
+      // Enviar e-mail via API
+      const resetLink = `${window.location.origin}/reset-password?token=${resetToken}`
+      
+      const response = await fetch('/api/send-password-reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          resetLink: resetLink,
+          userName: userData.name
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao enviar e-mail')
+      }
+
+      toast.success('Link de redefinição enviado para seu e-mail! Verifique sua caixa de entrada.')
+    } catch (error: any) {
+      console.error('Erro ao solicitar redefinição de senha:', error)
+      toast.error(error.message || 'Erro ao enviar e-mail. Tente novamente.')
     } finally {
-      setIsSaving(false)
+      setIsSendingEmail(false)
     }
   }
 
@@ -230,66 +276,44 @@ export default function SettingsPage() {
               Alterar Senha
             </CardTitle>
             <CardDescription>
-              Mantenha sua conta segura atualizando sua senha regularmente
+              Solicite um link de redefinição de senha por e-mail
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="currentPassword">Senha Atual</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                placeholder="Digite sua senha atual"
-              />
+            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+                  Redefinição segura por e-mail
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Clique no botão abaixo para receber um link de redefinição de senha no seu e-mail cadastrado: <strong>{userEmail}</strong>
+                </p>
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="newPassword">Nova Senha</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                placeholder="Digite sua nova senha"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                placeholder="Confirme sua nova senha"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+            <div className="flex items-center gap-2 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="w-2 h-2 bg-amber-600 rounded-full"></div>
               <p className="text-sm text-amber-900 dark:text-amber-100">
-                A senha deve ter no mínimo 6 caracteres
+                O link de redefinição expira em 1 hora por segurança
               </p>
             </div>
 
             <div className="pt-4">
               <Button 
-                onClick={handleChangePassword} 
-                className="w-full"
-                disabled={isSaving}
-                variant="outline"
+                onClick={handleRequestPasswordReset} 
+                className="w-full gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                disabled={isSendingEmail}
               >
-                {isSaving ? (
+                {isSendingEmail ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                    Alterando...
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Enviando e-mail...
                   </>
                 ) : (
                   <>
-                    <Shield className="w-4 h-4 mr-2" />
-                    Alterar Senha
+                    <Send className="w-4 h-4" />
+                    Enviar Link de Redefinição
                   </>
                 )}
               </Button>
