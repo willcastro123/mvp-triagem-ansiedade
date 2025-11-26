@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard, Download, FileText, Send, Users, Key, Copy, Check, Clock, Video, MapPin, Phone, Mail, Building, Moon, ChevronDown, ChevronUp } from 'lucide-react'
+import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard, Download, FileText, Send, Users, Key, Copy, Check, Clock, Video, MapPin, Phone, Mail, Building, Moon, ChevronDown, ChevronUp, ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -81,8 +81,11 @@ export default function DashboardPage() {
   const [isInstalled, setIsInstalled] = useState(false)
   const [isUserInfoExpanded, setIsUserInfoExpanded] = useState(true)
   
+  // Estados para painel lateral
+  const [sidePanelOpen, setSidePanelOpen] = useState(false)
+  const [sidePanelContent, setSidePanelContent] = useState<'doctor' | 'meditation' | 'sleep' | 'chat' | null>(null)
+  
   // Estados para painel do doutor
-  const [showDoctorPanel, setShowDoctorPanel] = useState(false)
   const [showSendMedication, setShowSendMedication] = useState(false)
   const [showPatientChat, setShowPatientChat] = useState(false)
   const [showAccessCodeModal, setShowAccessCodeModal] = useState(false)
@@ -905,6 +908,12 @@ export default function DashboardPage() {
     }
   }
 
+  const openSidePanel = (content: 'doctor' | 'meditation' | 'sleep' | 'chat') => {
+    setSidePanelContent(content)
+    setSidePanelOpen(true)
+    setSidebarOpen(false) // Fecha o sidebar principal no mobile
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center">
@@ -954,7 +963,7 @@ export default function DashboardPage() {
               {/* Painel do Doutor - Apenas para doutores */}
               {doctorInfo && (
                 <Button 
-                  onClick={() => setShowDoctorPanel(true)}
+                  onClick={() => openSidePanel('doctor')}
                   variant="ghost"
                   className="w-full justify-start gap-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30"
                 >
@@ -984,7 +993,7 @@ export default function DashboardPage() {
                 <span>Registro de Humor</span>
               </Button>
               <Button 
-                onClick={() => handleNavigation('Regulação do Sono')}
+                onClick={() => openSidePanel('sleep')}
                 variant="ghost"
                 className="w-full justify-start gap-3"
               >
@@ -992,7 +1001,7 @@ export default function DashboardPage() {
                 <span>Regulação do Sono</span>
               </Button>
               <Button 
-                onClick={() => handleNavigation('Meditação')}
+                onClick={() => openSidePanel('meditation')}
                 variant="ghost"
                 className="w-full justify-start gap-3"
               >
@@ -1032,7 +1041,7 @@ export default function DashboardPage() {
                 <span>Exposição Gradual</span>
               </Button>
               <Button 
-                onClick={() => handleNavigation('Chat IA')}
+                onClick={() => openSidePanel('chat')}
                 variant="ghost"
                 className="w-full justify-start gap-3"
               >
@@ -1291,7 +1300,7 @@ export default function DashboardPage() {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <Button
-                        onClick={() => setShowDoctorPanel(true)}
+                        onClick={() => openSidePanel('doctor')}
                         className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                       >
                         <Shield className="w-4 h-4" />
@@ -1465,7 +1474,7 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <Button 
-                      onClick={() => handleNavigation('Meditação')}
+                      onClick={() => openSidePanel('meditation')}
                       className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
                     >
                       Acessar
@@ -1555,7 +1564,7 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <Button 
-                      onClick={() => handleNavigation('Chat IA')}
+                      onClick={() => openSidePanel('chat')}
                       className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
                     >
                       Acessar
@@ -1585,6 +1594,288 @@ export default function DashboardPage() {
           </main>
         </div>
 
+        {/* Painel Lateral */}
+        {sidePanelOpen && (
+          <>
+            {/* Overlay */}
+            <div 
+              className="fixed inset-0 bg-black/50 z-50"
+              onClick={() => setSidePanelOpen(false)}
+            />
+            
+            {/* Painel */}
+            <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] lg:w-[600px] bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-right duration-300">
+              {/* Header do Painel */}
+              <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSidePanelOpen(false)}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                  <h2 className="text-xl font-bold">
+                    {sidePanelContent === 'doctor' && 'Painel do Doutor'}
+                    {sidePanelContent === 'meditation' && 'Meditação'}
+                    {sidePanelContent === 'sleep' && 'Regulação do Sono'}
+                    {sidePanelContent === 'chat' && 'Chat IA'}
+                  </h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidePanelOpen(false)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Conteúdo do Painel */}
+              <div className="p-6">
+                {sidePanelContent === 'doctor' && doctorInfo && (
+                  <Tabs defaultValue="patients" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="patients">Pacientes</TabsTrigger>
+                      <TabsTrigger value="appointments">Consultas</TabsTrigger>
+                      <TabsTrigger value="reports">Relatórios</TabsTrigger>
+                    </TabsList>
+
+                    {/* Aba: Pacientes */}
+                    <TabsContent value="patients" className="space-y-4">
+                      <div className="grid gap-4">
+                        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setShowAccessCodeModal(true)}>
+                          <CardContent className="pt-6 text-center">
+                            <Key className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                            <p className="font-semibold">Adicionar Paciente</p>
+                            <p className="text-xs text-muted-foreground mt-1">Usar código de acesso</p>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
+                          setSidePanelOpen(false)
+                          setTimeout(() => setShowSendMedication(true), 300)
+                        }}>
+                          <CardContent className="pt-6 text-center">
+                            <Pill className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                            <p className="font-semibold">Enviar Medicamento</p>
+                            <p className="text-xs text-muted-foreground mt-1">Prescrever para paciente</p>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card className="hover:shadow-lg transition-shadow">
+                          <CardContent className="pt-6 text-center">
+                            <Users className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                            <p className="font-semibold">{authorizedPatients.length}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Pacientes Autorizados</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Seus Pacientes</h3>
+                        {authorizedPatients.length === 0 ? (
+                          <div className="text-center py-8 bg-gray-50 dark:bg-slate-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                            <Key className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                            <p className="text-gray-600 dark:text-gray-400 mb-2">Nenhum paciente autorizado ainda</p>
+                            <p className="text-sm text-muted-foreground mb-4">Solicite o código de acesso do paciente para começar</p>
+                            <Button
+                              onClick={() => setShowAccessCodeModal(true)}
+                              className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                            >
+                              <Key className="w-4 h-4" />
+                              Adicionar Primeiro Paciente
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {authorizedPatients.map((patient) => (
+                              <div key={patient.id} className="flex flex-col gap-3 p-4 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900 dark:text-white">{patient.name}</p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{patient.email}</p>
+                                  <p className="text-xs text-muted-foreground capitalize">
+                                    {patient.anxiety_type === 'social' && 'Ansiedade Social'}
+                                    {patient.anxiety_type === 'panic' && 'Transtorno do Pânico'}
+                                    {patient.anxiety_type === 'general' && 'Ansiedade Generalizada'}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedPatient(patient)
+                                      loadPatientReport(patient.id)
+                                    }}
+                                    className="gap-1 flex-1"
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                    Relatório
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openPatientChat(patient)}
+                                    className="gap-1 flex-1"
+                                  >
+                                    <MessageSquare className="w-4 h-4" />
+                                    Chat
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setMedicationForm({ ...medicationForm, patientId: patient.id })
+                                      setSidePanelOpen(false)
+                                      setTimeout(() => setShowSendMedication(true), 300)
+                                    }}
+                                    className="gap-1 bg-blue-600 hover:bg-blue-700 flex-1"
+                                  >
+                                    <Pill className="w-4 h-4" />
+                                    Medicar
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* Aba: Consultas */}
+                    <TabsContent value="appointments" className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agenda de Consultas</h3>
+                        <Button
+                          onClick={() => setShowAppointmentModal(true)}
+                          size="sm"
+                          className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          Agendar
+                        </Button>
+                      </div>
+
+                      {appointments.length === 0 ? (
+                        <div className="text-center py-8 bg-gray-50 dark:bg-slate-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                          <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                          <p className="text-gray-600 dark:text-gray-400 mb-2">Nenhuma consulta agendada</p>
+                          <Button
+                            onClick={() => setShowAppointmentModal(true)}
+                            size="sm"
+                            className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                          >
+                            <Calendar className="w-4 h-4" />
+                            Agendar Primeira Consulta
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {appointments.map((apt) => (
+                            <div key={apt.id} className="p-4 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <p className="font-semibold text-gray-900 dark:text-white">{apt.patient_name}</p>
+                                  <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="w-4 h-4" />
+                                      {new Date(apt.date).toLocaleDateString('pt-BR')}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-4 h-4" />
+                                      {apt.time}
+                                    </span>
+                                  </div>
+                                  {apt.notes && (
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{apt.notes}</p>
+                                  )}
+                                </div>
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                  apt.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                                  apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {apt.status === 'scheduled' && 'Agendada'}
+                                  {apt.status === 'completed' && 'Concluída'}
+                                  {apt.status === 'cancelled' && 'Cancelada'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Aba: Relatórios */}
+                    <TabsContent value="reports" className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Relatórios de Pacientes</h3>
+                      {authorizedPatients.length === 0 ? (
+                        <div className="text-center py-8 bg-gray-50 dark:bg-slate-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                          <p className="text-gray-600 dark:text-gray-400">Adicione pacientes para visualizar relatórios</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4">
+                          {authorizedPatients.map((patient) => (
+                            <Card key={patient.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
+                              setSelectedPatient(patient)
+                              loadPatientReport(patient.id)
+                            }}>
+                              <CardContent className="pt-6">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                                    {patient.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-gray-900 dark:text-white">{patient.name}</p>
+                                    <p className="text-sm text-muted-foreground">{patient.email}</p>
+                                  </div>
+                                </div>
+                                <Button className="w-full gap-2" variant="outline">
+                                  <FileText className="w-4 h-4" />
+                                  Ver Relatório Completo
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                )}
+
+                {sidePanelContent === 'meditation' && (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground">Conteúdo de Meditação será exibido aqui</p>
+                    <Button onClick={() => router.push('/meditation')} className="w-full">
+                      Ir para Página Completa
+                    </Button>
+                  </div>
+                )}
+
+                {sidePanelContent === 'sleep' && (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground">Conteúdo de Regulação do Sono será exibido aqui</p>
+                    <Button onClick={() => router.push('/sleep')} className="w-full">
+                      Ir para Página Completa
+                    </Button>
+                  </div>
+                )}
+
+                {sidePanelContent === 'chat' && (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground">Conteúdo do Chat IA será exibido aqui</p>
+                    <Button onClick={() => router.push('/dashboard/chat')} className="w-full">
+                      Ir para Página Completa
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Modais existentes permanecem inalterados */}
         {/* Modal: Código de Acesso do Usuário */}
         <Dialog open={showUserAccessCode} onOpenChange={setShowUserAccessCode}>
           <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
@@ -1649,228 +1940,196 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Restante dos modais permanecem inalterados... */}
-        {/* (Todos os outros modais Dialog continuam exatamente como estavam) */}
-        
-        {/* Modal: Painel do Doutor */}
-        <Dialog open={showDoctorPanel} onOpenChange={setShowDoctorPanel}>
-          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-6xl max-h-[90vh] overflow-y-auto">
+        {/* Outros modais permanecem inalterados... */}
+        {/* Modal: Inserir Código de Acesso */}
+        <Dialog open={showAccessCodeModal} onOpenChange={setShowAccessCodeModal}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20">
             <DialogHeader>
               <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-600" />
-                Painel do Doutor
+                <Key className="w-5 h-5 text-green-600" />
+                Adicionar Paciente
               </DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Gerencie seus pacientes, consultas e visualize relatórios completos
+                Digite o código de acesso fornecido pelo paciente
               </DialogDescription>
             </DialogHeader>
             
-            <Tabs defaultValue="patients" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="patients">Pacientes</TabsTrigger>
-                <TabsTrigger value="appointments">Consultas</TabsTrigger>
-                <TabsTrigger value="reports">Relatórios</TabsTrigger>
-              </TabsList>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="access_code" className="text-gray-700 dark:text-gray-300">Código de Acesso</Label>
+                <Input
+                  id="access_code"
+                  value={accessCodeInput}
+                  onChange={(e) => setAccessCodeInput(e.target.value.toUpperCase())}
+                  placeholder="Ex: ABC12345"
+                  maxLength={8}
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-center text-2xl font-bold tracking-wider"
+                />
+              </div>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>ℹ️ Como funciona:</strong> O paciente deve fornecer o código de acesso único dele. 
+                  Com este código, você terá acesso aos relatórios e poderá prescrever medicamentos.
+                </p>
+              </div>
+            </div>
 
-              {/* Aba: Pacientes */}
-              <TabsContent value="patients" className="space-y-4">
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setShowAccessCodeModal(true)}>
-                    <CardContent className="pt-6 text-center">
-                      <Key className="w-8 h-8 mx-auto mb-2 text-green-600" />
-                      <p className="font-semibold">Adicionar Paciente</p>
-                      <p className="text-xs text-muted-foreground mt-1">Usar código de acesso</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
-                    setShowDoctorPanel(false)
-                    setTimeout(() => setShowSendMedication(true), 300)
-                  }}>
-                    <CardContent className="pt-6 text-center">
-                      <Pill className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                      <p className="font-semibold">Enviar Medicamento</p>
-                      <p className="text-xs text-muted-foreground mt-1">Prescrever para paciente</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardContent className="pt-6 text-center">
-                      <Users className="w-8 h-8 mx-auto mb-2 text-purple-600" />
-                      <p className="font-semibold">{authorizedPatients.length}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Pacientes Autorizados</p>
-                    </CardContent>
-                  </Card>
-                </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowAccessCodeModal(false)
+                setAccessCodeInput('')
+              }}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleAccessCodeSubmit}
+                className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              >
+                <Key className="w-4 h-4" />
+                Validar Código
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Seus Pacientes</h3>
-                  {authorizedPatients.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 dark:bg-slate-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-                      <Key className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                      <p className="text-gray-600 dark:text-gray-400 mb-2">Nenhum paciente autorizado ainda</p>
-                      <p className="text-sm text-muted-foreground mb-4">Solicite o código de acesso do paciente para começar</p>
-                      <Button
-                        onClick={() => setShowAccessCodeModal(true)}
-                        className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                      >
-                        <Key className="w-4 h-4" />
-                        Adicionar Primeiro Paciente
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {authorizedPatients.map((patient) => (
-                        <div key={patient.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900 dark:text-white">{patient.name}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{patient.email}</p>
-                            <p className="text-xs text-muted-foreground capitalize">
-                              {patient.anxiety_type === 'social' && 'Ansiedade Social'}
-                              {patient.anxiety_type === 'panic' && 'Transtorno do Pânico'}
-                              {patient.anxiety_type === 'general' && 'Ansiedade Generalizada'}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedPatient(patient)
-                                loadPatientReport(patient.id)
-                              }}
-                              className="gap-1"
-                            >
-                              <FileText className="w-4 h-4" />
-                              Relatório
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openPatientChat(patient)}
-                              className="gap-1"
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                              Chat
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setMedicationForm({ ...medicationForm, patientId: patient.id })
-                                setShowDoctorPanel(false)
-                                setTimeout(() => setShowSendMedication(true), 300)
-                              }}
-                              className="gap-1 bg-blue-600 hover:bg-blue-700"
-                            >
-                              <Pill className="w-4 h-4" />
-                              Medicar
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
+        {/* Modal: Enviar Medicamento */}
+        <Dialog open={showSendMedication} onOpenChange={setShowSendMedication}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <Pill className="w-5 h-5 text-blue-600" />
+                Enviar Medicamento
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Prescreva medicamento para o paciente
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="patient" className="text-gray-700 dark:text-gray-300">Paciente *</Label>
+                <select
+                  id="patient"
+                  value={medicationForm.patientId}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, patientId: e.target.value })}
+                  className="w-full mt-1 p-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white"
+                >
+                  <option value="">Selecione um paciente</option>
+                  {authorizedPatients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>{patient.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="medication_name" className="text-gray-700 dark:text-gray-300">Nome do Medicamento *</Label>
+                <Input
+                  id="medication_name"
+                  value={medicationForm.medicationName}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, medicationName: e.target.value })}
+                  placeholder="Ex: Sertralina"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="dosage" className="text-gray-700 dark:text-gray-300">Dosagem</Label>
+                <Input
+                  id="dosage"
+                  value={medicationForm.dosage}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, dosage: e.target.value })}
+                  placeholder="Ex: 50mg"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="frequency" className="text-gray-700 dark:text-gray-300">Frequência</Label>
+                <Input
+                  id="frequency"
+                  value={medicationForm.frequency}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, frequency: e.target.value })}
+                  placeholder="Ex: 1x ao dia"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="instructions" className="text-gray-700 dark:text-gray-300">Instruções</Label>
+                <Textarea
+                  id="instructions"
+                  value={medicationForm.instructions}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, instructions: e.target.value })}
+                  placeholder="Instruções adicionais para o paciente..."
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSendMedication(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSendMedication} className="bg-blue-600 hover:bg-blue-700 gap-2">
+                <Send className="w-4 h-4" />
+                Enviar Medicamento
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-              {/* Aba: Consultas */}
-              <TabsContent value="appointments" className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agenda de Consultas</h3>
-                  <Button
-                    onClick={() => setShowAppointmentModal(true)}
-                    className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Agendar Consulta
-                  </Button>
-                </div>
-
-                {appointments.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 dark:bg-slate-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-                    <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-2">Nenhuma consulta agendada</p>
-                    <Button
-                      onClick={() => setShowAppointmentModal(true)}
-                      className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+        {/* Modal: Chat com Paciente */}
+        <Dialog open={showPatientChat} onOpenChange={setShowPatientChat}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-green-600" />
+                Chat com {selectedPatient?.name}
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                {selectedPatient?.email}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Histórico de mensagens */}
+              <div className="h-96 overflow-y-auto bg-gray-50 dark:bg-slate-900 rounded-lg p-4 space-y-3">
+                {chatHistory.length === 0 ? (
+                  <p className="text-center text-muted-foreground">Nenhuma mensagem ainda. Inicie a conversa!</p>
+                ) : (
+                  chatHistory.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
                     >
-                      <Calendar className="w-4 h-4" />
-                      Agendar Primeira Consulta
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {appointments.map((apt) => (
-                      <div key={apt.id} className="p-4 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{apt.patient_name}</p>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
-                                {new Date(apt.date).toLocaleDateString('pt-BR')}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-4 h-4" />
-                                {apt.time}
-                              </span>
-                            </div>
-                            {apt.notes && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{apt.notes}</p>
-                            )}
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            apt.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
-                            apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {apt.status === 'scheduled' && 'Agendada'}
-                            {apt.status === 'completed' && 'Concluída'}
-                            {apt.status === 'cancelled' && 'Cancelada'}
-                          </span>
-                        </div>
+                      <div
+                        className={`max-w-[70%] p-3 rounded-lg ${
+                          msg.sender_id === user?.id
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                        }`}
+                      >
+                        <p className="text-sm">{msg.message}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))
                 )}
-              </TabsContent>
+              </div>
 
-              {/* Aba: Relatórios */}
-              <TabsContent value="reports" className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Relatórios de Pacientes</h3>
-                {authorizedPatients.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 dark:bg-slate-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-                    <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                    <p className="text-gray-600 dark:text-gray-400">Adicione pacientes para visualizar relatórios</p>
-                  </div>
-                ) : (
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {authorizedPatients.map((patient) => (
-                      <Card key={patient.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
-                        setSelectedPatient(patient)
-                        loadPatientReport(patient.id)
-                      }}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
-                              {patient.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{patient.name}</p>
-                              <p className="text-sm text-muted-foreground">{patient.email}</p>
-                            </div>
-                          </div>
-                          <Button className="w-full gap-2" variant="outline">
-                            <FileText className="w-4 h-4" />
-                            Ver Relatório Completo
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+              {/* Input de mensagem */}
+              <div className="flex gap-2">
+                <Input
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1 bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+                <Button onClick={handleSendMessage} className="bg-green-600 hover:bg-green-700 gap-2">
+                  <Send className="w-4 h-4" />
+                  Enviar
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -2214,198 +2473,6 @@ export default function DashboardPage() {
                 Salvar Dados
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal: Inserir Código de Acesso */}
-        <Dialog open={showAccessCodeModal} onOpenChange={setShowAccessCodeModal}>
-          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20">
-            <DialogHeader>
-              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
-                <Key className="w-5 h-5 text-green-600" />
-                Adicionar Paciente
-              </DialogTitle>
-              <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Digite o código de acesso fornecido pelo paciente
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="access_code" className="text-gray-700 dark:text-gray-300">Código de Acesso</Label>
-                <Input
-                  id="access_code"
-                  value={accessCodeInput}
-                  onChange={(e) => setAccessCodeInput(e.target.value.toUpperCase())}
-                  placeholder="Ex: ABC12345"
-                  maxLength={8}
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-center text-2xl font-bold tracking-wider"
-                />
-              </div>
-              
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>ℹ️ Como funciona:</strong> O paciente deve fornecer o código de acesso único dele. 
-                  Com este código, você terá acesso aos relatórios e poderá prescrever medicamentos.
-                </p>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setShowAccessCodeModal(false)
-                setAccessCodeInput('')
-              }}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleAccessCodeSubmit}
-                className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-              >
-                <Key className="w-4 h-4" />
-                Validar Código
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal: Enviar Medicamento */}
-        <Dialog open={showSendMedication} onOpenChange={setShowSendMedication}>
-          <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
-            <DialogHeader>
-              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
-                <Pill className="w-5 h-5 text-blue-600" />
-                Enviar Medicamento
-              </DialogTitle>
-              <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Prescreva medicamento para o paciente
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="patient" className="text-gray-700 dark:text-gray-300">Paciente *</Label>
-                <select
-                  id="patient"
-                  value={medicationForm.patientId}
-                  onChange={(e) => setMedicationForm({ ...medicationForm, patientId: e.target.value })}
-                  className="w-full mt-1 p-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white"
-                >
-                  <option value="">Selecione um paciente</option>
-                  {authorizedPatients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>{patient.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="medication_name" className="text-gray-700 dark:text-gray-300">Nome do Medicamento *</Label>
-                <Input
-                  id="medication_name"
-                  value={medicationForm.medicationName}
-                  onChange={(e) => setMedicationForm({ ...medicationForm, medicationName: e.target.value })}
-                  placeholder="Ex: Sertralina"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="dosage" className="text-gray-700 dark:text-gray-300">Dosagem</Label>
-                <Input
-                  id="dosage"
-                  value={medicationForm.dosage}
-                  onChange={(e) => setMedicationForm({ ...medicationForm, dosage: e.target.value })}
-                  placeholder="Ex: 50mg"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="frequency" className="text-gray-700 dark:text-gray-300">Frequência</Label>
-                <Input
-                  id="frequency"
-                  value={medicationForm.frequency}
-                  onChange={(e) => setMedicationForm({ ...medicationForm, frequency: e.target.value })}
-                  placeholder="Ex: 1x ao dia"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="instructions" className="text-gray-700 dark:text-gray-300">Instruções</Label>
-                <Textarea
-                  id="instructions"
-                  value={medicationForm.instructions}
-                  onChange={(e) => setMedicationForm({ ...medicationForm, instructions: e.target.value })}
-                  placeholder="Instruções adicionais para o paciente..."
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowSendMedication(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSendMedication} className="bg-blue-600 hover:bg-blue-700 gap-2">
-                <Send className="w-4 h-4" />
-                Enviar Medicamento
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal: Chat com Paciente */}
-        <Dialog open={showPatientChat} onOpenChange={setShowPatientChat}>
-          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-green-600" />
-                Chat com {selectedPatient?.name}
-              </DialogTitle>
-              <DialogDescription className="text-gray-600 dark:text-gray-400">
-                {selectedPatient?.email}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              {/* Histórico de mensagens */}
-              <div className="h-96 overflow-y-auto bg-gray-50 dark:bg-slate-900 rounded-lg p-4 space-y-3">
-                {chatHistory.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Nenhuma mensagem ainda. Inicie a conversa!</p>
-                ) : (
-                  chatHistory.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] p-3 rounded-lg ${
-                          msg.sender_id === user?.id
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
-                        }`}
-                      >
-                        <p className="text-sm">{msg.message}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Input de mensagem */}
-              <div className="flex gap-2">
-                <Input
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Digite sua mensagem..."
-                  className="flex-1 bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-                <Button onClick={handleSendMessage} className="bg-green-600 hover:bg-green-700 gap-2">
-                  <Send className="w-4 h-4" />
-                  Enviar
-                </Button>
-              </div>
-            </div>
           </DialogContent>
         </Dialog>
 
