@@ -47,6 +47,8 @@ export default function EmailDemoPage() {
     }
   }
 
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://zentiamind.com.br'
+
   const demoScenarios = [
     {
       type: 'password_reset',
@@ -56,7 +58,7 @@ export default function EmailDemoPage() {
       color: 'from-purple-500 to-pink-500',
       variables: {
         name: 'João Silva',
-        resetLink: `${window.location.origin}/reset-password?token=demo123`
+        resetLink: `${origin}/reset-password?token=demo123`
       }
     },
     {
@@ -92,7 +94,7 @@ export default function EmailDemoPage() {
         name: 'Ana Costa',
         amount: '149,90',
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
-        paymentLink: `${window.location.origin}/payment/demo`
+        paymentLink: `${origin}/payment/demo`
       }
     },
     {
