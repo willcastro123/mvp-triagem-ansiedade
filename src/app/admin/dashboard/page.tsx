@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, FileText, Eye } from 'lucide-react';
 
 interface User {
   id: string;
@@ -128,8 +128,12 @@ export default function AdminDashboard() {
   const [showUploadVideo, setShowUploadVideo] = useState(false);
   const [showAddPatient, setShowAddPatient] = useState(false);
   const [showGenerateInvoices, setShowGenerateInvoices] = useState(false);
+  const [showPatientReport, setShowPatientReport] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [selectedPatientForReport, setSelectedPatientForReport] = useState<User | null>(null);
+  const [patientActivities, setPatientActivities] = useState<any[]>([]);
+  const [patientComments, setPatientComments] = useState<any[]>([]);
   const [patientAccessCode, setPatientAccessCode] = useState('');
 
   // Estados para formulários
@@ -799,6 +803,39 @@ export default function AdminDashboard() {
     } catch (error: any) {
       console.error('Erro ao atualizar fatura:', error);
       alert('Erro ao atualizar fatura: ' + error.message);
+    }
+  };
+
+  const openPatientReport = async (patient: User) => {
+    setSelectedPatientForReport(patient);
+    setShowPatientReport(true);
+
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      // Carregar atividades do paciente
+      const { data: activitiesData, error: activitiesError } = await supabase
+        .from('user_activity_logs')
+        .select('*')
+        .eq('user_id', patient.id)
+        .order('created_at', { ascending: false });
+
+      if (!activitiesError && activitiesData) {
+        setPatientActivities(activitiesData);
+      }
+
+      // Carregar comentários do paciente
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('meditation_comments')
+        .select('*, meditation_videos(title)')
+        .eq('user_id', patient.id)
+        .order('created_at', { ascending: false });
+
+      if (!commentsError && commentsData) {
+        setPatientComments(commentsData);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar relatório do paciente:', error);
     }
   };
 
@@ -1555,11 +1592,24 @@ export default function AdminDashboard() {
                                         key={patient.id}
                                         className="bg-slate-800/50 p-3 rounded-lg border border-purple-500/10"
                                       >
-                                        <p className="text-white font-medium">{patient.name}</p>
-                                        <p className="text-gray-400 text-sm">{patient.email}</p>
-                                        <Badge variant="outline" className="mt-2 text-xs border-purple-500/20">
-                                          {patient.access_code}
-                                        </Badge>
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <p className="text-white font-medium">{patient.name}</p>
+                                            <p className="text-gray-400 text-sm">{patient.email}</p>
+                                            <Badge variant="outline" className="mt-2 text-xs border-purple-500/20">
+                                              {patient.access_code}
+                                            </Badge>
+                                          </div>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => openPatientReport(patient)}
+                                            className="gap-1 border-blue-500/20 hover:bg-blue-500/10 ml-2"
+                                          >
+                                            <Eye className="w-3 h-3" />
+                                            Ver Relatório
+                                          </Button>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
@@ -2119,6 +2169,126 @@ export default function AdminDashboard() {
             </Button>
             <Button onClick={handleGenerateMonthlyInvoices} className="bg-green-600 hover:bg-green-700">
               Gerar Faturas
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Relatório Detalhado do Paciente */}
+      <Dialog open={showPatientReport} onOpenChange={setShowPatientReport}>
+        <DialogContent className="bg-slate-800 border-purple-500/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Relatório Detalhado do Paciente
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Histórico completo de atividades e interações
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedPatientForReport && (
+            <div className="space-y-6">
+              {/* Informações do Paciente */}
+              <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-500/10">
+                <h3 className="text-white font-semibold text-lg mb-2">{selectedPatientForReport.name}</h3>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400">E-mail:</p>
+                    <p className="text-white">{selectedPatientForReport.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Cidade:</p>
+                    <p className="text-white">{selectedPatientForReport.city || 'Não informada'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Tipo de Ansiedade:</p>
+                    <p className="text-white capitalize">{selectedPatientForReport.anxiety_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Código de Acesso:</p>
+                    <Badge variant="outline" className="font-mono border-purple-500/20">
+                      {selectedPatientForReport.access_code}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Histórico de Atividades */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-purple-400" />
+                  Histórico de Atividades ({patientActivities.length})
+                </h4>
+                {patientActivities.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-900/50 rounded-lg border border-purple-500/10">
+                    <Activity className="w-10 h-10 mx-auto mb-3 text-gray-600" />
+                    <p className="text-gray-400">Nenhuma atividade registrada ainda.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {patientActivities.map((activity: any) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-start gap-3 p-3 bg-slate-900/50 rounded-lg border border-purple-500/10"
+                      >
+                        <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-purple-400">
+                          {getActivityIcon(activity.activity_type)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs border-purple-500/20 text-gray-400">
+                              {getActivityCategoryLabel(activity.activity_type)}
+                            </Badge>
+                            <span className="text-xs text-gray-500">{formatDate(activity.created_at)}</span>
+                          </div>
+                          <p className="text-sm text-white">{activity.activity_description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Comentários do Paciente */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-blue-400" />
+                  Comentários em Vídeos ({patientComments.length})
+                </h4>
+                {patientComments.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-900/50 rounded-lg border border-purple-500/10">
+                    <MessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-600" />
+                    <p className="text-gray-400">Nenhum comentário registrado ainda.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {patientComments.map((comment: any) => (
+                      <div
+                        key={comment.id}
+                        className="p-3 bg-slate-900/50 rounded-lg border border-purple-500/10"
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className={comment.is_approved ? 'bg-green-500' : 'bg-yellow-500'}>
+                            {comment.is_approved ? 'Aprovado' : 'Pendente'}
+                          </Badge>
+                          <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-2">
+                          <strong>Vídeo:</strong> {comment.meditation_videos?.title || 'Vídeo desconhecido'}
+                        </p>
+                        <p className="text-white">{comment.comment_text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPatientReport(false)} className="border-purple-500/20">
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
