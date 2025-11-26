@@ -13,7 +13,6 @@ import { supabase, type UserProfile } from '@/lib/supabase'
 import { toast } from 'sonner'
 import Script from 'next/script'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 
 interface DoctorInfo {
   id: string;
@@ -44,26 +43,6 @@ interface PatientReport {
   meditation_sessions: number;
   chat_messages: number;
   last_activity: string;
-}
-
-interface ActivityLog {
-  id: string;
-  user_id: string;
-  activity_type: string;
-  activity_description: string;
-  created_at: string;
-}
-
-interface Comment {
-  id: string;
-  user_id: string;
-  video_id: string;
-  comment_text: string;
-  is_approved: boolean;
-  created_at: string;
-  meditation_videos?: {
-    title: string;
-  };
 }
 
 interface Appointment {
@@ -117,8 +96,6 @@ export default function DashboardPage() {
   const [authorizedPatients, setAuthorizedPatients] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [selectedPatientReport, setSelectedPatientReport] = useState<PatientReport | null>(null)
-  const [patientActivities, setPatientActivities] = useState<ActivityLog[]>([])
-  const [patientComments, setPatientComments] = useState<Comment[]>([])
   const [userAccessCode, setUserAccessCode] = useState<string>('')
   const [copiedCode, setCopiedCode] = useState(false)
   const [isGeneratingCode, setIsGeneratingCode] = useState(false)
@@ -409,14 +386,12 @@ export default function DashboardPage() {
   const loadPatientReport = async (patientId: string) => {
     try {
       // Buscar dados de atividades do paciente
-      const [moodData, medsData, habitsData, meditationData, chatData, activitiesData, commentsData] = await Promise.all([
+      const [moodData, medsData, habitsData, meditationData, chatData] = await Promise.all([
         supabase.from('mood_entries').select('*').eq('user_id', patientId),
         supabase.from('medication_logs').select('*').eq('user_id', patientId),
         supabase.from('habit_logs').select('*').eq('user_id', patientId),
         supabase.from('meditation_sessions').select('*').eq('user_id', patientId),
-        supabase.from('chat_history').select('*').eq('user_id', patientId),
-        supabase.from('user_activity_logs').select('*').eq('user_id', patientId).order('created_at', { ascending: false }),
-        supabase.from('meditation_comments').select('*, meditation_videos(title)').eq('user_id', patientId).order('created_at', { ascending: false })
+        supabase.from('chat_history').select('*').eq('user_id', patientId)
       ])
 
       const report: PatientReport = {
@@ -429,8 +404,6 @@ export default function DashboardPage() {
       }
 
       setSelectedPatientReport(report)
-      setPatientActivities(activitiesData.data || [])
-      setPatientComments(commentsData.data || [])
       setShowPatientReport(true)
     } catch (error) {
       console.error('Erro ao carregar relatório:', error)
@@ -719,10 +692,12 @@ export default function DashboardPage() {
         .from('medications')
         .insert([{
           user_id: medicationForm.patientId,
+          doctor_id: doctorInfo?.id,
           name: medicationForm.medicationName,
           dosage: medicationForm.dosage,
           frequency: medicationForm.frequency,
-          notes: medicationForm.instructions
+          instructions: medicationForm.instructions,
+          prescribed_at: new Date().toISOString()
         }])
 
       if (error) throw error
@@ -930,23 +905,6 @@ export default function DashboardPage() {
     }
   }
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'login': return '🔐'
-      case 'exposure': return '🎯'
-      case 'breathing': return '🫁'
-      case 'sale': return '💰'
-      case 'meditation': return '🧘'
-      case 'quiz': return '📝'
-      case 'scheduling': return '📅'
-      default: return '📝'
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR')
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center">
@@ -964,7 +922,7 @@ export default function DashboardPage() {
         strategy="lazyOnload"
       />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex">
-        {/* Sidebar - mantém igual */}
+        {/* Sidebar */}
         <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static`}>
           <div className="flex flex-col h-full">
             {/* Logo */}
@@ -1244,7 +1202,7 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Main Content - mantém igual, apenas os modais mudam */}
+        {/* Main Content */}
         <div className="flex-1 flex flex-col min-h-screen">
           {/* Header Mobile */}
           <header className="lg:hidden border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-30">
@@ -1271,7 +1229,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          {/* Main Content Area - mantém igual */}
+          {/* Main Content Area */}
           <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
             <div className="max-w-6xl mx-auto">
               {/* Welcome Section */}
@@ -1691,7 +1649,10 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Painel do Doutor - mantém igual */}
+        {/* Restante dos modais permanecem inalterados... */}
+        {/* (Todos os outros modais Dialog continuam exatamente como estavam) */}
+        
+        {/* Modal: Painel do Doutor */}
         <Dialog open={showDoctorPanel} onOpenChange={setShowDoctorPanel}>
           <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -1913,76 +1874,21 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Relatório Detalhado do Paciente - VERSÃO EXPANDIDA */}
+        {/* Modal: Relatório do Paciente */}
         <Dialog open={showPatientReport} onOpenChange={setShowPatientReport}>
-          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20 max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20 max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
                 <FileText className="w-5 h-5 text-purple-600" />
-                Relatório Detalhado de {selectedPatient?.name}
+                Relatório de {selectedPatient?.name}
               </DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Histórico completo de atividades e interações do paciente na plataforma
+                Atividades do paciente na plataforma por categoria
               </DialogDescription>
             </DialogHeader>
 
-            {selectedPatientReport && selectedPatient && (
-              <div className="space-y-6">
-                {/* Informações do Paciente */}
-                <div className="bg-slate-900/50 p-6 rounded-lg border border-purple-500/10">
-                  <h3 className="text-white font-semibold text-xl mb-4">{selectedPatient.name}</h3>
-                  <div className="grid md:grid-cols-3 gap-6 text-sm">
-                    <div>
-                      <p className="text-gray-400 mb-1">E-mail:</p>
-                      <p className="text-white font-medium">{selectedPatient.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 mb-1">Tipo de Ansiedade:</p>
-                      <p className="text-white font-medium capitalize">
-                        {selectedPatient.anxiety_type === 'social' && 'Ansiedade Social'}
-                        {selectedPatient.anxiety_type === 'panic' && 'Transtorno do Pânico'}
-                        {selectedPatient.anxiety_type === 'general' && 'Ansiedade Generalizada'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 mb-1">Código de Acesso:</p>
-                      <Badge variant="outline" className="font-mono border-purple-500/20 text-white">
-                        {selectedPatient.access_code}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Estatísticas Rápidas */}
-                <div className="grid md:grid-cols-3 gap-4">
-                  <Card className="bg-slate-900/50 border-purple-500/10">
-                    <CardContent className="pt-6 text-center">
-                      <Activity className="w-8 h-8 mx-auto mb-2 text-purple-400" />
-                      <p className="text-3xl font-bold text-white">{patientActivities.length}</p>
-                      <p className="text-sm text-gray-400">Atividades Realizadas</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-slate-900/50 border-purple-500/10">
-                    <CardContent className="pt-6 text-center">
-                      <MessageSquare className="w-8 h-8 mx-auto mb-2 text-blue-400" />
-                      <p className="text-3xl font-bold text-white">{patientComments.length}</p>
-                      <p className="text-sm text-gray-400">Comentários Feitos</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-slate-900/50 border-purple-500/10">
-                    <CardContent className="pt-6 text-center">
-                      <Check className="w-8 h-8 mx-auto mb-2 text-green-400" />
-                      <p className="text-3xl font-bold text-white">
-                        {patientComments.filter((c: any) => c.is_approved).length}
-                      </p>
-                      <p className="text-sm text-gray-400">Comentários Aprovados</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Estatísticas por Categoria */}
+            {selectedPatientReport && (
+              <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Card>
                     <CardContent className="pt-6 text-center">
@@ -2029,107 +1935,566 @@ export default function DashboardPage() {
                     </CardContent>
                   </Card>
                 </div>
-
-                {/* Histórico Completo de Atividades */}
-                <div>
-                  <h4 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-purple-400" />
-                    Histórico Completo de Atividades ({patientActivities.length})
-                  </h4>
-                  {patientActivities.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-900/50 rounded-lg border border-purple-500/10">
-                      <Activity className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                      <p className="text-gray-400">Nenhuma atividade registrada ainda.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      {patientActivities.map((activity: ActivityLog) => (
-                        <div
-                          key={activity.id}
-                          className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-colors"
-                        >
-                          <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-2xl">
-                            {getActivityIcon(activity.activity_type)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline" className="text-xs border-purple-500/20 text-purple-400">
-                                {activity.activity_type}
-                              </Badge>
-                              <span className="text-xs text-gray-500">{formatDate(activity.created_at)}</span>
-                            </div>
-                            <p className="text-white font-medium mb-1">{activity.activity_description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Todos os Comentários */}
-                <div>
-                  <h4 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-blue-400" />
-                    Todos os Comentários em Vídeos ({patientComments.length})
-                  </h4>
-                  {patientComments.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-900/50 rounded-lg border border-purple-500/10">
-                      <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                      <p className="text-gray-400">Nenhum comentário registrado ainda.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                      {patientComments.map((comment: Comment) => (
-                        <div
-                          key={comment.id}
-                          className="p-4 bg-slate-900/50 rounded-lg border border-purple-500/10"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <Badge className={comment.is_approved ? 'bg-green-500' : 'bg-yellow-500'}>
-                                {comment.is_approved ? (
-                                  <>
-                                    <Check className="w-3 h-3 mr-1" />
-                                    Aprovado
-                                  </>
-                                ) : (
-                                  <>
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    Pendente
-                                  </>
-                                )}
-                              </Badge>
-                              <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-400 mb-3">
-                            <strong className="text-blue-400">Vídeo:</strong> {comment.meditation_videos?.title || 'Vídeo desconhecido'}
-                          </p>
-                          <div className="bg-slate-800/50 p-3 rounded border border-purple-500/10">
-                            <p className="text-white leading-relaxed">{comment.comment_text}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
             <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowPatientReport(false)} 
-                className="border-purple-500/20"
-              >
-                Fechar Relatório
+              <Button onClick={() => setShowPatientReport(false)}>
+                Fechar
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Restante dos modais - mantém igual (Agendar Consulta, Painel Financeiro, Dados do Doutor, Inserir Código, Enviar Medicamento, Chat, Venda) */}
-        {/* ... (todos os outros modais permanecem exatamente como estavam) */}
+        {/* Modal: Agendar Consulta */}
+        <Dialog open={showAppointmentModal} onOpenChange={setShowAppointmentModal}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-blue-600" />
+                Agendar Consulta
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Organize sua agenda de consultas com pacientes
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="apt_patient" className="text-gray-700 dark:text-gray-300">Paciente *</Label>
+                <select
+                  id="apt_patient"
+                  value={appointmentForm.patientId}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, patientId: e.target.value })}
+                  className="w-full mt-1 p-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white"
+                >
+                  <option value="">Selecione um paciente</option>
+                  {authorizedPatients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>{patient.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="apt_date" className="text-gray-700 dark:text-gray-300">Data *</Label>
+                  <Input
+                    id="apt_date"
+                    type="date"
+                    value={appointmentForm.date}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, date: e.target.value })}
+                    className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="apt_time" className="text-gray-700 dark:text-gray-300">Horário *</Label>
+                  <Input
+                    id="apt_time"
+                    type="time"
+                    value={appointmentForm.time}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, time: e.target.value })}
+                    className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="apt_notes" className="text-gray-700 dark:text-gray-300">Observações</Label>
+                <Textarea
+                  id="apt_notes"
+                  value={appointmentForm.notes}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })}
+                  placeholder="Anotações sobre a consulta..."
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAppointmentModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleScheduleAppointment} className="bg-blue-600 hover:bg-blue-700 gap-2">
+                <Calendar className="w-4 h-4" />
+                Agendar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Painel Financeiro */}
+        <Dialog open={showFinancialPanel} onOpenChange={setShowFinancialPanel}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-green-600" />
+                Painel Financeiro
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Gerencie suas informações de pagamento e planos de consulta
+              </DialogDescription>
+            </DialogHeader>
+
+            <Tabs defaultValue="payment" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="payment">Dados de Pagamento</TabsTrigger>
+                <TabsTrigger value="plans">Planos de Consulta</TabsTrigger>
+              </TabsList>
+
+              {/* Aba: Dados de Pagamento */}
+              <TabsContent value="payment" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="pix_key" className="text-gray-700 dark:text-gray-300">Chave PIX</Label>
+                    <Input
+                      id="pix_key"
+                      value={financialForm.pixKey}
+                      onChange={(e) => setFinancialForm({ ...financialForm, pixKey: e.target.value })}
+                      placeholder="Digite sua chave PIX (CPF, e-mail, telefone ou chave aleatória)"
+                      className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="payment_link" className="text-gray-700 dark:text-gray-300">Link de Pagamento</Label>
+                    <Input
+                      id="payment_link"
+                      value={financialForm.paymentLink}
+                      onChange={(e) => setFinancialForm({ ...financialForm, paymentLink: e.target.value })}
+                      placeholder="Cole o link do seu gateway de pagamento (Mercado Pago, PagSeguro, etc.)"
+                      className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <Button onClick={handleSaveFinancialInfo} className="w-full gap-2 bg-green-600 hover:bg-green-700">
+                    <CreditCard className="w-4 h-4" />
+                    Salvar Informações
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* Aba: Planos de Consulta */}
+              <TabsContent value="plans" className="space-y-4">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Criar Novo Plano</h3>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="plan_name" className="text-gray-700 dark:text-gray-300">Nome do Plano *</Label>
+                      <Input
+                        id="plan_name"
+                        value={planForm.name}
+                        onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                        placeholder="Ex: Pacote 5 Consultas"
+                        className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="plan_price" className="text-gray-700 dark:text-gray-300">Preço (R$) *</Label>
+                      <Input
+                        id="plan_price"
+                        type="number"
+                        value={planForm.price}
+                        onChange={(e) => setPlanForm({ ...planForm, price: parseFloat(e.target.value) })}
+                        placeholder="0.00"
+                        className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="plan_sessions" className="text-gray-700 dark:text-gray-300">Número de Sessões</Label>
+                      <Input
+                        id="plan_sessions"
+                        type="number"
+                        value={planForm.sessions}
+                        onChange={(e) => setPlanForm({ ...planForm, sessions: parseInt(e.target.value) })}
+                        placeholder="1"
+                        className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="plan_description" className="text-gray-700 dark:text-gray-300">Descrição</Label>
+                      <Textarea
+                        id="plan_description"
+                        value={planForm.description}
+                        onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
+                        placeholder="Descreva o que está incluído neste plano..."
+                        className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={handleCreatePlan} className="w-full gap-2 bg-blue-600 hover:bg-blue-700">
+                    <DollarSign className="w-4 h-4" />
+                    Criar Plano
+                  </Button>
+                </div>
+
+                <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Planos Cadastrados</h3>
+                  {consultationPlans.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">Nenhum plano cadastrado ainda</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {consultationPlans.map((plan) => (
+                        <div key={plan.id} className="p-4 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-semibold text-gray-900 dark:text-white">{plan.name}</p>
+                              <p className="text-sm text-muted-foreground">{plan.sessions} sessões</p>
+                              {plan.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{plan.description}</p>
+                              )}
+                            </div>
+                            <p className="text-xl font-bold text-green-600">R$ {plan.price.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Dados do Doutor */}
+        <Dialog open={showDoctorInfoModal} onOpenChange={setShowDoctorInfoModal}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <User className="w-5 h-5 text-purple-600" />
+                Dados do Doutor
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Informações de contato exibidas para os pacientes
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="doctor_name" className="text-gray-700 dark:text-gray-300">Nome Completo</Label>
+                <Input
+                  id="doctor_name"
+                  value={doctorInfo?.name || ''}
+                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, name: e.target.value })}
+                  placeholder="Dr. João Silva"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="doctor_city" className="text-gray-700 dark:text-gray-300">Cidade</Label>
+                <Input
+                  id="doctor_city"
+                  value={doctorInfo?.city || ''}
+                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, city: e.target.value })}
+                  placeholder="São Paulo - SP"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="doctor_address" className="text-gray-700 dark:text-gray-300">Endereço</Label>
+                <Input
+                  id="doctor_address"
+                  value={doctorInfo?.address || ''}
+                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, address: e.target.value })}
+                  placeholder="Rua Exemplo, 123 - Centro"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="doctor_phone" className="text-gray-700 dark:text-gray-300">Telefone para Contato</Label>
+                <Input
+                  id="doctor_phone"
+                  value={doctorInfo?.phone || ''}
+                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, phone: e.target.value })}
+                  placeholder="(11) 98765-4321"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDoctorInfoModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveDoctorInfo} className="bg-purple-600 hover:bg-purple-700 gap-2">
+                <User className="w-4 h-4" />
+                Salvar Dados
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Inserir Código de Acesso */}
+        <Dialog open={showAccessCodeModal} onOpenChange={setShowAccessCodeModal}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <Key className="w-5 h-5 text-green-600" />
+                Adicionar Paciente
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Digite o código de acesso fornecido pelo paciente
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="access_code" className="text-gray-700 dark:text-gray-300">Código de Acesso</Label>
+                <Input
+                  id="access_code"
+                  value={accessCodeInput}
+                  onChange={(e) => setAccessCodeInput(e.target.value.toUpperCase())}
+                  placeholder="Ex: ABC12345"
+                  maxLength={8}
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-center text-2xl font-bold tracking-wider"
+                />
+              </div>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>ℹ️ Como funciona:</strong> O paciente deve fornecer o código de acesso único dele. 
+                  Com este código, você terá acesso aos relatórios e poderá prescrever medicamentos.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowAccessCodeModal(false)
+                setAccessCodeInput('')
+              }}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleAccessCodeSubmit}
+                className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              >
+                <Key className="w-4 h-4" />
+                Validar Código
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Enviar Medicamento */}
+        <Dialog open={showSendMedication} onOpenChange={setShowSendMedication}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <Pill className="w-5 h-5 text-blue-600" />
+                Enviar Medicamento
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Prescreva medicamento para o paciente
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="patient" className="text-gray-700 dark:text-gray-300">Paciente *</Label>
+                <select
+                  id="patient"
+                  value={medicationForm.patientId}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, patientId: e.target.value })}
+                  className="w-full mt-1 p-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white"
+                >
+                  <option value="">Selecione um paciente</option>
+                  {authorizedPatients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>{patient.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="medication_name" className="text-gray-700 dark:text-gray-300">Nome do Medicamento *</Label>
+                <Input
+                  id="medication_name"
+                  value={medicationForm.medicationName}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, medicationName: e.target.value })}
+                  placeholder="Ex: Sertralina"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="dosage" className="text-gray-700 dark:text-gray-300">Dosagem</Label>
+                <Input
+                  id="dosage"
+                  value={medicationForm.dosage}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, dosage: e.target.value })}
+                  placeholder="Ex: 50mg"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="frequency" className="text-gray-700 dark:text-gray-300">Frequência</Label>
+                <Input
+                  id="frequency"
+                  value={medicationForm.frequency}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, frequency: e.target.value })}
+                  placeholder="Ex: 1x ao dia"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="instructions" className="text-gray-700 dark:text-gray-300">Instruções</Label>
+                <Textarea
+                  id="instructions"
+                  value={medicationForm.instructions}
+                  onChange={(e) => setMedicationForm({ ...medicationForm, instructions: e.target.value })}
+                  placeholder="Instruções adicionais para o paciente..."
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSendMedication(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSendMedication} className="bg-blue-600 hover:bg-blue-700 gap-2">
+                <Send className="w-4 h-4" />
+                Enviar Medicamento
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Chat com Paciente */}
+        <Dialog open={showPatientChat} onOpenChange={setShowPatientChat}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-green-600" />
+                Chat com {selectedPatient?.name}
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                {selectedPatient?.email}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Histórico de mensagens */}
+              <div className="h-96 overflow-y-auto bg-gray-50 dark:bg-slate-900 rounded-lg p-4 space-y-3">
+                {chatHistory.length === 0 ? (
+                  <p className="text-center text-muted-foreground">Nenhuma mensagem ainda. Inicie a conversa!</p>
+                ) : (
+                  chatHistory.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[70%] p-3 rounded-lg ${
+                          msg.sender_id === user?.id
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                        }`}
+                      >
+                        <p className="text-sm">{msg.message}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Input de mensagem */}
+              <div className="flex gap-2">
+                <Input
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1 bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                />
+                <Button onClick={handleSendMessage} className="bg-green-600 hover:bg-green-700 gap-2">
+                  <Send className="w-4 h-4" />
+                  Enviar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Venda de Doutor com Gateway Mercado Pago */}
+        <Dialog open={showDoctorSell} onOpenChange={setShowDoctorSell}>
+          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-orange-600" />
+                Vender Acesso Premium
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Registre uma venda com desconto de doutor via Mercado Pago
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-6 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600 dark:text-gray-400">Valor Original:</span>
+                  <span className="text-gray-900 dark:text-white font-semibold line-through">R$ {sellData.originalPrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600 dark:text-gray-400">Desconto Doutor:</span>
+                  <span className="text-green-600 dark:text-green-400 font-semibold">- R$ 10,00</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t-2 border-orange-300 dark:border-orange-700">
+                  <span className="text-gray-700 dark:text-gray-300 font-semibold">Valor Final:</span>
+                  <span className="text-orange-600 dark:text-orange-400 font-bold text-2xl">R$ {sellData.discountedPrice.toFixed(2)}</span>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="buyer_name" className="text-gray-700 dark:text-gray-300">Nome do Comprador</Label>
+                <Input
+                  id="buyer_name"
+                  type="text"
+                  value={sellData.buyerName}
+                  onChange={(e) => setSellData({ ...sellData, buyerName: e.target.value })}
+                  placeholder="João Silva"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-purple-500/20 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="buyer_email" className="text-gray-700 dark:text-gray-300">E-mail do Comprador *</Label>
+                <Input
+                  id="buyer_email"
+                  type="email"
+                  value={sellData.buyerEmail}
+                  onChange={(e) => setSellData({ ...sellData, buyerEmail: e.target.value })}
+                  placeholder="comprador@email.com"
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-purple-500/20 text-gray-900 dark:text-white"
+                  required
+                />
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  O comprador será redirecionado para o checkout seguro do Mercado Pago
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDoctorSell(false)} 
+                className="border-gray-300 dark:border-purple-500/20"
+                disabled={isProcessingPayment}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleDoctorSell} 
+                className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 gap-2"
+                disabled={isProcessingPayment}
+              >
+                {isProcessingPayment ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Ir para Pagamento
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   )
