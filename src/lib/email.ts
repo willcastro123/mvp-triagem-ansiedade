@@ -8,8 +8,11 @@ const transporter = nodemailer.createTransport({
   secure: true, // SSL/TLS
   auth: {
     user: process.env.SMTP_USER || 'suporte@zentiamind.com.br',
-    pass: process.env.SMTP_PASSWORD || '',
+    pass: process.env.SMTP_PASSWORD || '09111964Wc!@',
   },
+  tls: {
+    rejectUnauthorized: false // Aceita certificados auto-assinados
+  }
 })
 
 // Verificar conexão SMTP

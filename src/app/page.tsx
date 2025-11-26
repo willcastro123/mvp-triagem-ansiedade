@@ -1,8 +1,7 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { Mail, Settings, Users, LayoutDashboard, FileText, Bell } from 'lucide-react'
+import { Mail, Settings, Users, LayoutDashboard, FileText, Bell, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -26,13 +25,22 @@ export default function HomePage() {
                 <p className="text-xs text-muted-foreground">Sistema de Gerenciamento</p>
               </div>
             </div>
-            <Button 
-              variant="outline"
-              onClick={() => router.push('/dashboard/settings')}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Configurações
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => router.push('/demo/email')}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Demo
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => router.push('/dashboard/settings')}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Configurações
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -73,6 +81,24 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
+            {/* Demonstração */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-green-200 dark:border-green-800" onClick={() => router.push('/demo/email')}>
+              <CardHeader>
+                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mb-3">
+                  <Send className="w-7 h-7 text-white" />
+                </div>
+                <CardTitle className="text-xl">Demonstração</CardTitle>
+                <CardDescription>
+                  Teste os templates de e-mail e veja exemplos de envio
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600">
+                  Ver Demonstração
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Configurações de E-mail */}
             <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/settings')}>
               <CardHeader>
@@ -94,7 +120,7 @@ export default function HomePage() {
             {/* Usuários */}
             <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-75">
               <CardHeader>
-                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mb-3">
+                <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mb-3">
                   <Users className="w-7 h-7 text-white" />
                 </div>
                 <CardTitle className="text-xl">Usuários</CardTitle>
@@ -112,7 +138,7 @@ export default function HomePage() {
             {/* Dashboard */}
             <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-75">
               <CardHeader>
-                <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mb-3">
+                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mb-3">
                   <LayoutDashboard className="w-7 h-7 text-white" />
                 </div>
                 <CardTitle className="text-xl">Dashboard</CardTitle>
@@ -130,30 +156,12 @@ export default function HomePage() {
             {/* Relatórios */}
             <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-75">
               <CardHeader>
-                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mb-3">
+                <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mb-3">
                   <FileText className="w-7 h-7 text-white" />
                 </div>
                 <CardTitle className="text-xl">Relatórios</CardTitle>
                 <CardDescription>
                   Gere relatórios de envios e performance
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full" disabled>
-                  Em Breve
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Notificações */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-75">
-              <CardHeader>
-                <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mb-3">
-                  <Bell className="w-7 h-7 text-white" />
-                </div>
-                <CardTitle className="text-xl">Notificações</CardTitle>
-                <CardDescription>
-                  Configure alertas e notificações do sistema
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -169,8 +177,8 @@ export default function HomePage() {
             <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white border-0">
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <p className="text-4xl font-bold mb-2">8</p>
-                  <p className="text-purple-100">Templates Disponíveis</p>
+                  <p className="text-4xl font-bold mb-2">5</p>
+                  <p className="text-purple-100">Templates Ativos</p>
                 </div>
               </CardContent>
             </Card>
@@ -219,9 +227,9 @@ export default function HomePage() {
                     <span className="text-blue-600 font-bold">2</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1">Crie Templates</h3>
+                    <h3 className="font-semibold mb-1">Personalize Templates</h3>
                     <p className="text-sm text-muted-foreground">
-                      Personalize templates de e-mail para cada tipo de notificação automática
+                      Edite os templates de e-mail para cada tipo de notificação automática
                     </p>
                   </div>
                 </div>
@@ -231,9 +239,9 @@ export default function HomePage() {
                     <span className="text-green-600 font-bold">3</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1">Ative os Envios</h3>
+                    <h3 className="font-semibold mb-1">Teste e Ative</h3>
                     <p className="text-sm text-muted-foreground">
-                      Configure os gatilhos automáticos e comece a enviar e-mails personalizados
+                      Use a demonstração para testar os envios e ative os templates
                     </p>
                   </div>
                 </div>

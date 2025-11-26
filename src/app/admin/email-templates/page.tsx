@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Mail, Plus, Edit, Eye, Save, X, Copy, Check } from 'lucide-react'
+import { ArrowLeft, Mail, Plus, Edit, Eye, Save, X, Copy, Check, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -35,6 +35,10 @@ export default function EmailTemplatesPage() {
   const [previewHtml, setPreviewHtml] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [copiedVar, setCopiedVar] = useState<string | null>(null)
+  const [showTestDialog, setShowTestDialog] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [testVariables, setTestVariables] = useState<Record<string, string>>({})
+  const [isSendingTest, setIsSendingTest] = useState(false)
   
   const [formData, setFormData] = useState({
     name: '',
@@ -152,6 +156,67 @@ export default function EmailTemplatesPage() {
     setShowPreview(true)
   }
 
+  const handleTestEmail = (template: EmailTemplate) => {
+    setSelectedTemplate(template)
+    
+    // Inicializar variáveis de teste com valores padrão
+    const defaultValues: Record<string, string> = {
+      name: 'João Silva',
+      resetLink: `${window.location.origin}/reset-password?token=test123`,
+      productName: 'Plano Premium',
+      amount: '99,90',
+      date: new Date().toLocaleDateString('pt-BR'),
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+      paymentLink: `${window.location.origin}/payment/test`,
+      title: 'Notificação de Teste',
+      message: 'Esta é uma mensagem de teste do sistema de e-mails.',
+      subject: 'E-mail de Teste'
+    }
+    
+    const vars: Record<string, string> = {}
+    template.variables.forEach(v => {
+      vars[v] = defaultValues[v] || `Teste ${v}`
+    })
+    
+    setTestVariables(vars)
+    setShowTestDialog(true)
+  }
+
+  const sendTestEmail = async () => {
+    if (!testEmail || !selectedTemplate) {
+      toast.error('Preencha o e-mail de destino')
+      return
+    }
+
+    setIsSendingTest(true)
+    try {
+      const response = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateType: selectedTemplate.type,
+          email: testEmail,
+          variables: testVariables
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao enviar e-mail')
+      }
+
+      toast.success('E-mail de teste enviado com sucesso!')
+      setShowTestDialog(false)
+      setTestEmail('')
+    } catch (error: any) {
+      console.error('Erro ao enviar e-mail de teste:', error)
+      toast.error(error.message || 'Erro ao enviar e-mail de teste')
+    } finally {
+      setIsSendingTest(false)
+    }
+  }
+
   const extractVariables = (html: string): string[] => {
     const regex = /{{(\w+)}}/g
     const matches = html.matchAll(regex)
@@ -210,7 +275,7 @@ export default function EmailTemplatesPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.push('/admin/dashboard')}
+              onClick={() => router.push('/')}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -265,24 +330,31 @@ export default function EmailTemplatesPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="grid grid-cols-2 gap-2 pt-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
                       onClick={() => handlePreview(template)}
                     >
                       <Eye className="w-4 h-4 mr-1" />
-                      Visualizar
+                      Ver
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
                       onClick={() => handleEdit(template)}
                     >
                       <Edit className="w-4 h-4 mr-1" />
                       Editar
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="col-span-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                      onClick={() => handleTestEmail(template)}
+                    >
+                      <Send className="w-4 h-4 mr-1" />
+                      Testar Envio
                     </Button>
                   </div>
                 </div>
@@ -421,6 +493,85 @@ export default function EmailTemplatesPage() {
               className="border rounded-lg p-4 bg-white"
               dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Test Email Dialog */}
+        <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Testar Envio de E-mail</DialogTitle>
+              <DialogDescription>
+                Envie um e-mail de teste para verificar o template
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="test-email">E-mail de Destino</Label>
+                <Input
+                  id="test-email"
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                />
+              </div>
+
+              {selectedTemplate && selectedTemplate.variables.length > 0 && (
+                <div>
+                  <Label>Variáveis do Template</Label>
+                  <div className="space-y-2 mt-2">
+                    {selectedTemplate.variables.map((variable) => (
+                      <div key={variable}>
+                        <Label htmlFor={`var-${variable}`} className="text-xs text-muted-foreground">
+                          {variable}
+                        </Label>
+                        <Input
+                          id={`var-${variable}`}
+                          value={testVariables[variable] || ''}
+                          onChange={(e) => setTestVariables({
+                            ...testVariables,
+                            [variable]: e.target.value
+                          })}
+                          placeholder={`Valor para ${variable}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  onClick={sendTestEmail} 
+                  className="flex-1"
+                  disabled={isSendingTest}
+                >
+                  {isSendingTest ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Enviar E-mail de Teste
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowTestDialog(false)
+                    setTestEmail('')
+                  }}
+                  disabled={isSendingTest}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
