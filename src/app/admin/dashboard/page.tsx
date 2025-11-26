@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
+import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 interface User {
   id: string;
@@ -57,6 +57,7 @@ interface Stats {
   totalInvoices: number;
   pendingInvoices: number;
   paidInvoices: number;
+  pendingComments: number;
 }
 
 interface MeditationVideo {
@@ -82,6 +83,18 @@ interface Invoice {
   user_email?: string;
 }
 
+interface Comment {
+  id: string;
+  user_id: string;
+  video_id: string;
+  comment_text: string;
+  is_approved: boolean;
+  created_at: string;
+  user_name?: string;
+  user_email?: string;
+  video_title?: string;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   
@@ -91,6 +104,7 @@ export default function AdminDashboard() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [meditationVideos, setMeditationVideos] = useState<MeditationVideo[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     premiumUsers: 0,
@@ -99,7 +113,8 @@ export default function AdminDashboard() {
     todayActivities: 0,
     totalInvoices: 0,
     pendingInvoices: 0,
-    paidInvoices: 0
+    paidInvoices: 0,
+    pendingComments: 0
   });
 
   // Estados para filtros de atividades
@@ -220,6 +235,49 @@ export default function AdminDashboard() {
         setMeditationVideos(videosData);
       }
 
+      // Carregar comentários pendentes
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('meditation_comments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!commentsError && commentsData) {
+        // Buscar dados dos usuários e vídeos para os comentários
+        const userIds = [...new Set(commentsData.map((c: any) => c.user_id))];
+        const videoIds = [...new Set(commentsData.map((c: any) => c.video_id))];
+
+        const { data: usersForComments } = await supabase
+          .from('user_profiles')
+          .select('id, name, email')
+          .in('id', userIds);
+
+        const { data: videosForComments } = await supabase
+          .from('meditation_videos')
+          .select('id, title')
+          .in('id', videoIds);
+
+        const userMap = new Map(usersForComments?.map(u => [u.id, u]) || []);
+        const videoMap = new Map(videosForComments?.map(v => [v.id, v]) || []);
+
+        const formattedComments = commentsData.map((comment: any) => {
+          const user = userMap.get(comment.user_id);
+          const video = videoMap.get(comment.video_id);
+          return {
+            ...comment,
+            user_name: user?.name || 'Usuário desconhecido',
+            user_email: user?.email || '',
+            video_title: video?.title || 'Vídeo desconhecido'
+          };
+        });
+
+        setComments(formattedComments);
+        
+        setStats(prev => ({
+          ...prev,
+          pendingComments: commentsData.filter((c: any) => !c.is_approved).length
+        }));
+      }
+
       // Carregar faturas
       const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
@@ -259,8 +317,7 @@ export default function AdminDashboard() {
       const { data: activitiesData, error: activitiesError } = await supabase
         .from('user_activity_logs')
         .select('id, user_id, activity_type, activity_description, created_at')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
 
       if (activitiesError) {
         console.error('Erro ao carregar atividades:', activitiesError);
@@ -314,6 +371,48 @@ export default function AdminDashboard() {
 
   const generateAccessCode = () => {
     return Math.random().toString(36).substring(2, 10).toUpperCase();
+  };
+
+  const handleApproveComment = async (commentId: string) => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const { error } = await supabase
+        .from('meditation_comments')
+        .update({ is_approved: true })
+        .eq('id', commentId);
+
+      if (error) throw error;
+
+      alert('Comentário aprovado com sucesso!');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao aprovar comentário:', error);
+      alert('Erro ao aprovar comentário: ' + error.message);
+    }
+  };
+
+  const handleRejectComment = async (commentId: string) => {
+    if (!confirm('Tem certeza que deseja reprovar e excluir este comentário?')) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      const { error } = await supabase
+        .from('meditation_comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) throw error;
+
+      alert('Comentário reprovado e excluído com sucesso!');
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao reprovar comentário:', error);
+      alert('Erro ao reprovar comentário: ' + error.message);
+    }
   };
 
   const handleCreateUser = async () => {
@@ -830,6 +929,14 @@ export default function AdminDashboard() {
     return invoices.filter(inv => inv.status === status);
   };
 
+  const getPendingComments = () => {
+    return comments.filter(c => !c.is_approved);
+  };
+
+  const getApprovedComments = () => {
+    return comments.filter(c => c.is_approved);
+  };
+
   const filteredActivities = filterActivities();
   const activityCategories = getActivityCategories();
 
@@ -872,9 +979,9 @@ export default function AdminDashboard() {
 
           <Card className="bg-slate-800/50 border-purple-500/20">
             <CardContent className="pt-6 text-center">
-              <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-400" />
-              <p className="text-3xl font-bold text-white">{stats.pendingInvoices}</p>
-              <p className="text-sm text-gray-400">Faturas Pendentes</p>
+              <MessageSquare className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+              <p className="text-3xl font-bold text-white">{stats.pendingComments}</p>
+              <p className="text-sm text-gray-400">Comentários Pendentes</p>
             </CardContent>
           </Card>
 
@@ -889,23 +996,6 @@ export default function AdminDashboard() {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card 
-            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
-            onClick={() => router.push('/admin/meditation-comments')}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Moderação de Comentários</h3>
-                  <p className="text-sm text-gray-400">Aprovar ou rejeitar comentários de meditação</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card 
             className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
             onClick={() => setShowUploadVideo(true)}
@@ -939,17 +1029,152 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          <Card 
+            className="bg-slate-800/50 border-purple-500/20 cursor-pointer hover:bg-slate-800/70 transition-colors"
+            onClick={() => setShowCreateUser(true)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
+                  <UserPlus className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Criar Usuário</h3>
+                  <p className="text-sm text-gray-400">Adicionar novo usuário ao sistema</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs for different sections */}
-        <Tabs defaultValue="invoices" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8">
+        <Tabs defaultValue="comments" className="w-full">
+          <TabsList className="grid w-full grid-cols-6 mb-8">
+            <TabsTrigger value="comments">Comentários</TabsTrigger>
             <TabsTrigger value="invoices">Faturas</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
             <TabsTrigger value="doctors">Doutores</TabsTrigger>
             <TabsTrigger value="videos">Vídeos</TabsTrigger>
             <TabsTrigger value="activities">Atividades</TabsTrigger>
           </TabsList>
+
+          {/* Comments Tab */}
+          <TabsContent value="comments">
+            <div className="space-y-6">
+              {/* Comentários Pendentes */}
+              <Card className="bg-slate-800/50 border-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-yellow-400" />
+                    Comentários Pendentes de Aprovação
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Revise e aprove ou reprove comentários de meditação
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {getPendingComments().length === 0 ? (
+                    <div className="text-center py-12">
+                      <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                      <p className="text-gray-400">Nenhum comentário pendente de aprovação.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {getPendingComments().map((comment) => (
+                        <div
+                          key={comment.id}
+                          className="p-4 bg-slate-900/50 rounded-lg border border-yellow-500/20"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="font-semibold text-white">{comment.user_name}</p>
+                                <Badge variant="outline" className="text-xs border-purple-500/20 text-gray-400">
+                                  {comment.user_email}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-400 mb-2">
+                                <strong>Vídeo:</strong> {comment.video_title}
+                              </p>
+                              <p className="text-white mb-3">{comment.comment_text}</p>
+                              <p className="text-xs text-gray-500">{formatDate(comment.created_at)}</p>
+                            </div>
+                            <div className="flex gap-2 flex-shrink-0">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveComment(comment.id)}
+                                className="gap-1 bg-green-600 hover:bg-green-700"
+                              >
+                                <ThumbsUp className="w-3 h-3" />
+                                Aprovar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleRejectComment(comment.id)}
+                                className="gap-1"
+                              >
+                                <ThumbsDown className="w-3 h-3" />
+                                Reprovar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Comentários Aprovados */}
+              <Card className="bg-slate-800/50 border-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    Comentários Aprovados
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Histórico de comentários aprovados
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {getApprovedComments().length === 0 ? (
+                    <div className="text-center py-12">
+                      <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                      <p className="text-gray-400">Nenhum comentário aprovado ainda.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {getApprovedComments().map((comment) => (
+                        <div
+                          key={comment.id}
+                          className="p-4 bg-slate-900/50 rounded-lg border border-green-500/20"
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="font-semibold text-white">{comment.user_name}</p>
+                                <Badge className="text-xs bg-green-500">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Aprovado
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-400 mb-2">
+                                <strong>Vídeo:</strong> {comment.video_title}
+                              </p>
+                              <p className="text-white mb-3">{comment.comment_text}</p>
+                              <p className="text-xs text-gray-500">{formatDate(comment.created_at)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Invoices Tab */}
           <TabsContent value="invoices">
@@ -1419,7 +1644,7 @@ export default function AdminDashboard() {
                   Registro de Atividades
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Últimas 50 atividades dos usuários na plataforma
+                  Todas as atividades dos usuários na plataforma
                 </CardDescription>
               </CardHeader>
               <CardContent>
