@@ -180,9 +180,9 @@ export default function EmailDemoPage() {
                     <div className="space-y-1">
                       {Object.entries(scenario.variables).map(([key, value]) => (
                         <div key={key} className="flex items-center gap-2 text-xs">
-                          <span className="font-mono text-purple-600">{{key}}</span>
+                          <span className="font-mono text-purple-600">{`{${key}}`}</span>
                           <span className="text-muted-foreground">=</span>
-                          <span className="truncate">{value}</span>
+                          <span className="truncate">{String(value)}</span>
                         </div>
                       ))}
                     </div>
