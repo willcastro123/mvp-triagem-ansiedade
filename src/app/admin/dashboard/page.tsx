@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { LogOut, Users, Activity, Mail, Settings, Send, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, Edit, Trash2, Plus, Shield, MessageSquare, Video, Mic, FileVideo, Sparkles } from 'lucide-react';
+import { LogOut, Users, Activity, Mail, Settings, Send, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, Edit, Trash2, Plus, Shield, MessageSquare, Video, Mic, FileVideo, Sparkles, Server } from 'lucide-react';
 
 interface User {
   id: string;
@@ -692,20 +692,20 @@ export default function AdminDashboard() {
   const handleFileUpload = async (file: File) => {
     setIsGenerating(true);
     try {
-      // Aqui você faria upload para seu storage (Supabase Storage, AWS S3, etc.)
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Exemplo de upload para Supabase Storage
       const { supabase } = await import('@/lib/supabase');
       const fileName = `${Date.now()}_${file.name}`;
       
+      // Upload para o bucket meditation-videos
       const { data, error } = await supabase.storage
         .from('meditation-videos')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (error) throw error;
 
+      // Obter URL pública do arquivo
       const { data: { publicUrl } } = supabase.storage
         .from('meditation-videos')
         .getPublicUrl(fileName);
@@ -1051,7 +1051,7 @@ export default function AdminDashboard() {
               variant="outline"
               className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
             >
-              <Server className="w-4 h-4" />
+              <Settings className="w-4 h-4" />
               SMTP
             </Button>
             <Button
