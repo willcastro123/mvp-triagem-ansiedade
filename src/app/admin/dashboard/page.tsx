@@ -14,8 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, FileText, Eye } from 'lucide-react';
 import { Sidebar } from '@/components/custom/sidebar';
-import { Sidebar } from '@/components/custom/sidebar';
-import { Sidebar } from '@/components/custom/sidebar';
 
 interface User {
   id: string;
