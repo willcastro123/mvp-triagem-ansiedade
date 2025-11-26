@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard, Download, FileText, Send, Users, Key, Copy, Check, Clock, Video, MapPin, Phone, Mail, Building, Moon, ChevronDown, ChevronUp, ChevronLeft } from 'lucide-react'
+import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard, Download, FileText, Send, Users, Key, Copy, Check, Clock, Video, MapPin, Phone, Mail, Building, Moon, ChevronDown, ChevronUp, ChevronLeft, Upload, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -25,6 +25,14 @@ interface DoctorInfo {
   phone?: string;
   pix_key?: string;
   payment_link?: string;
+}
+
+interface DoctorProfile {
+  id?: string;
+  doctor_id: string;
+  photo_url?: string;
+  bio?: string;
+  show_on_landing: boolean;
 }
 
 interface Patient {
@@ -75,11 +83,14 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null)
+  const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null)
   const [showDoctorSell, setShowDoctorSell] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isUserInfoExpanded, setIsUserInfoExpanded] = useState(true)
+  const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   
   // Estados para painel lateral
   const [sidePanelOpen, setSidePanelOpen] = useState(false)
@@ -131,8 +142,8 @@ export default function DashboardPage() {
   const [chatHistory, setChatHistory] = useState<any[]>([])
   
   const [sellData, setSellData] = useState({
-    originalPrice: 100,
-    discountedPrice: 90,
+    originalPrice: 24.90,
+    discountedPrice: 24.90,
     buyerEmail: '',
     buyerName: ''
   })
@@ -295,12 +306,75 @@ export default function DashboardPage() {
           pixKey: data.pix_key || '',
           paymentLink: data.payment_link || ''
         })
+        loadDoctorProfile(data.id)
         loadAuthorizedPatients(userId)
         loadAppointments(userId)
         loadConsultationPlans(userId)
       }
     } catch (error) {
       console.log('Usuário não é doutor')
+    }
+  }
+
+  const loadDoctorProfile = async (doctorId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('doctor_profiles')
+        .select('*')
+        .eq('doctor_id', doctorId)
+        .single()
+
+      if (!error && data) {
+        setDoctorProfile(data)
+        if (data.photo_url) {
+          setPhotoPreview(data.photo_url)
+        }
+      } else {
+        // Criar perfil vazio se não existir
+        setDoctorProfile({
+          doctor_id: doctorId,
+          show_on_landing: true
+        })
+      }
+    } catch (error) {
+      console.error('Erro ao carregar perfil do doutor:', error)
+    }
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor, selecione uma imagem válida')
+      return
+    }
+
+    // Validar tamanho (máx 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 5MB')
+      return
+    }
+
+    setIsUploadingPhoto(true)
+
+    try {
+      // Criar preview local
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+
+      // Aqui você pode implementar upload para Supabase Storage ou outro serviço
+      // Por enquanto, vamos usar o preview local
+      toast.success('Foto carregada! Clique em Salvar para confirmar.')
+    } catch (error) {
+      console.error('Erro ao fazer upload da foto:', error)
+      toast.error('Erro ao fazer upload da foto')
+    } finally {
+      setIsUploadingPhoto(false)
     }
   }
 
@@ -628,8 +702,8 @@ export default function DashboardPage() {
 
   const openDoctorSell = () => {
     setSellData({
-      originalPrice: 100,
-      discountedPrice: 90,
+      originalPrice: 24.90,
+      discountedPrice: 24.90,
       buyerEmail: '',
       buyerName: ''
     })
@@ -650,33 +724,9 @@ export default function DashboardPage() {
     setIsProcessingPayment(true)
 
     try {
-      // Criar preferência de pagamento no Mercado Pago
-      const response = await fetch('/api/create-preference', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          buyerEmail: sellData.buyerEmail,
-          buyerName: sellData.buyerName,
-          amount: sellData.discountedPrice,
-          title: 'Acesso Premium ZentiaMind - Desconto Doutor',
-          doctorId: doctorInfo.id,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao criar preferência de pagamento')
-      }
-
-      // Redirecionar para o checkout do Mercado Pago
-      if (data.initPoint) {
-        window.location.href = data.initPoint
-      } else {
-        throw new Error('Link de pagamento não disponível')
-      }
+      // Redirecionar diretamente para o link do Hotmart
+      const hotmartLink = 'https://pay.hotmart.com/P103056552X?sck=HOTMART_PRODUCT_PAGE&off=xfu3cyhr&hotfeature=32&_gl=1*1m9tg0l*_ga*MTE0NzcyODYwNS4xNzYzNzE3MDM5*_ga_GQH2V1F11Q*czE3NjM3MTcwMzckbzEkZzEkdDE3NjM3MjA1MzQkajYwJGwwJGgw*_gcl_au*MTI0NDM4ODg1MC4xNzYzNzE3MDM5LjE1Mzg3OTcyMDMuMTc2MzcxNzA4MS4xNzYzNzIwMzY1*FPAU*MTI0NDM4ODg1MC4xNzYzNzE3MDM5&bid=1763720540240'
+      window.location.href = hotmartLink
     } catch (error: any) {
       console.error('Erro ao processar pagamento:', error)
       toast.error(error.message || 'Erro ao processar pagamento. Tente novamente.')
@@ -806,10 +856,11 @@ export default function DashboardPage() {
   }
 
   const handleSaveDoctorInfo = async () => {
-    if (!doctorInfo) return
+    if (!doctorInfo || !doctorProfile) return
 
     try {
-      const { error } = await supabase
+      // Atualizar informações básicas do doutor
+      const { error: doctorError } = await supabase
         .from('doctors')
         .update({
           name: doctorInfo.name,
@@ -819,7 +870,36 @@ export default function DashboardPage() {
         })
         .eq('id', doctorInfo.id)
 
-      if (error) throw error
+      if (doctorError) throw doctorError
+
+      // Atualizar ou criar perfil do doutor
+      const profileData = {
+        doctor_id: doctorInfo.id,
+        photo_url: photoPreview || null,
+        bio: doctorProfile.bio || null,
+        show_on_landing: doctorProfile.show_on_landing,
+        updated_at: new Date().toISOString()
+      }
+
+      if (doctorProfile.id) {
+        // Atualizar perfil existente
+        const { error: profileError } = await supabase
+          .from('doctor_profiles')
+          .update(profileData)
+          .eq('id', doctorProfile.id)
+
+        if (profileError) throw profileError
+      } else {
+        // Criar novo perfil
+        const { data: newProfile, error: profileError } = await supabase
+          .from('doctor_profiles')
+          .insert([profileData])
+          .select()
+          .single()
+
+        if (profileError) throw profileError
+        setDoctorProfile(newProfile)
+      }
 
       toast.success('Informações do doutor salvas!')
       setShowDoctorInfoModal(false)
@@ -931,7 +1011,7 @@ export default function DashboardPage() {
         strategy="lazyOnload"
       />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex">
-        {/* Sidebar */}
+        {/* Sidebar - mantém código existente */}
         <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static`}>
           <div className="flex flex-col h-full">
             {/* Logo */}
@@ -1170,15 +1250,6 @@ export default function DashboardPage() {
                     <DollarSign className="w-4 h-4" />
                     Vender Acesso
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowFinancialPanel(true)}
-                    className="w-full gap-2 border-green-200 hover:bg-green-50 dark:border-green-800 dark:hover:bg-green-900/20"
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    Painel Financeiro
-                  </Button>
                 </>
               )}
               <Button
@@ -1211,7 +1282,7 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Main Content */}
+        {/* Main Content - mantém código existente */}
         <div className="flex-1 flex flex-col min-h-screen">
           {/* Header Mobile */}
           <header className="lg:hidden border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-30">
@@ -1238,7 +1309,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          {/* Main Content Area */}
+          {/* Main Content Area - mantém código existente, apenas adiciona seção de dados do doutor com foto */}
           <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
             <div className="max-w-6xl mx-auto">
               {/* Welcome Section */}
@@ -1325,7 +1396,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Stats Cards */}
+              {/* Stats Cards - mantém código existente */}
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <Card className="border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20">
                   <CardContent className="pt-6 text-center">
@@ -1351,7 +1422,7 @@ export default function DashboardPage() {
                 </Card>
               </div>
 
-              {/* User Info Card */}
+              {/* User Info Card - mantém código existente, adiciona foto do doutor */}
               <Card className="mb-8 border-purple-200 shadow-lg">
                 <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
                   <CardTitle className="flex items-center gap-2">
@@ -1401,6 +1472,20 @@ export default function DashboardPage() {
                         <Shield className="w-5 h-5 text-purple-600" />
                         Dados do Doutor
                       </h3>
+                      
+                      {/* Foto do Doutor */}
+                      {photoPreview && (
+                        <div className="mb-4 flex justify-center">
+                          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-purple-200 dark:border-purple-800">
+                            <img 
+                              src={photoPreview} 
+                              alt={doctorInfo.name || 'Foto do Doutor'} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="flex items-start gap-2">
                           <User className="w-4 h-4 text-muted-foreground mt-1" />
@@ -1444,7 +1529,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Features Grid - Cards com botões */}
+              {/* Features Grid - mantém código existente */}
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Card className="hover:shadow-xl transition-shadow">
                   <CardHeader>
@@ -1594,7 +1679,7 @@ export default function DashboardPage() {
           </main>
         </div>
 
-        {/* Painel Lateral */}
+        {/* Painel Lateral - mantém código existente */}
         {sidePanelOpen && (
           <>
             {/* Overlay */}
@@ -1603,7 +1688,7 @@ export default function DashboardPage() {
               onClick={() => setSidePanelOpen(false)}
             />
             
-            {/* Painel */}
+            {/* Painel - código existente mantido */}
             <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] lg:w-[600px] bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-right duration-300">
               {/* Header do Painel */}
               <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
@@ -1631,7 +1716,7 @@ export default function DashboardPage() {
                 </Button>
               </div>
 
-              {/* Conteúdo do Painel */}
+              {/* Conteúdo do Painel - mantém código existente */}
               <div className="p-6">
                 {sidePanelContent === 'doctor' && doctorInfo && (
                   <Tabs defaultValue="patients" className="w-full">
@@ -1641,7 +1726,7 @@ export default function DashboardPage() {
                       <TabsTrigger value="reports">Relatórios</TabsTrigger>
                     </TabsList>
 
-                    {/* Aba: Pacientes */}
+                    {/* Aba: Pacientes - mantém código existente */}
                     <TabsContent value="patients" className="space-y-4">
                       <div className="grid gap-4">
                         <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setShowAccessCodeModal(true)}>
@@ -1742,7 +1827,7 @@ export default function DashboardPage() {
                       </div>
                     </TabsContent>
 
-                    {/* Aba: Consultas */}
+                    {/* Aba: Consultas - mantém código existente */}
                     <TabsContent value="appointments" className="space-y-4">
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agenda de Consultas</h3>
@@ -1806,7 +1891,7 @@ export default function DashboardPage() {
                       )}
                     </TabsContent>
 
-                    {/* Aba: Relatórios */}
+                    {/* Aba: Relatórios - mantém código existente */}
                     <TabsContent value="reports" className="space-y-4">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Relatórios de Pacientes</h3>
                       {authorizedPatients.length === 0 ? (
@@ -1875,8 +1960,8 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* Modais existentes permanecem inalterados */}
-        {/* Modal: Código de Acesso do Usuário */}
+        {/* Modais existentes - mantém código, adiciona modal de dados do doutor com upload de foto */}
+        {/* Modal: Código de Acesso do Usuário - mantém código existente */}
         <Dialog open={showUserAccessCode} onOpenChange={setShowUserAccessCode}>
           <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
             <DialogHeader>
@@ -1940,8 +2025,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Outros modais permanecem inalterados... */}
-        {/* Modal: Inserir Código de Acesso */}
+        {/* Modal: Inserir Código de Acesso - mantém código existente */}
         <Dialog open={showAccessCodeModal} onOpenChange={setShowAccessCodeModal}>
           <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20">
             <DialogHeader>
@@ -1993,7 +2077,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Enviar Medicamento */}
+        {/* Modal: Enviar Medicamento - mantém código existente */}
         <Dialog open={showSendMedication} onOpenChange={setShowSendMedication}>
           <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
             <DialogHeader>
@@ -2074,7 +2158,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Chat com Paciente */}
+        {/* Modal: Chat com Paciente - mantém código existente */}
         <Dialog open={showPatientChat} onOpenChange={setShowPatientChat}>
           <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-2xl">
             <DialogHeader>
@@ -2133,7 +2217,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Relatório do Paciente */}
+        {/* Modal: Relatório do Paciente - mantém código existente */}
         <Dialog open={showPatientReport} onOpenChange={setShowPatientReport}>
           <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20 max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -2205,7 +2289,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Agendar Consulta */}
+        {/* Modal: Agendar Consulta - mantém código existente */}
         <Dialog open={showAppointmentModal} onOpenChange={setShowAppointmentModal}>
           <DialogContent className="bg-white dark:bg-slate-800 border-blue-500/20">
             <DialogHeader>
@@ -2278,7 +2362,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Painel Financeiro */}
+        {/* Modal: Painel Financeiro - mantém código existente */}
         <Dialog open={showFinancialPanel} onOpenChange={setShowFinancialPanel}>
           <DialogContent className="bg-white dark:bg-slate-800 border-green-500/20 max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -2410,19 +2494,66 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Dados do Doutor */}
+        {/* Modal: Dados do Doutor COM UPLOAD DE FOTO */}
         <Dialog open={showDoctorInfoModal} onOpenChange={setShowDoctorInfoModal}>
-          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20">
+          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20 max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
                 <User className="w-5 h-5 text-purple-600" />
                 Dados do Doutor
               </DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Informações de contato exibidas para os pacientes
+                Informações de contato e foto exibidas para os pacientes e na landing page
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Upload de Foto */}
+              <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 rounded-lg">
+                <Label className="text-gray-700 dark:text-gray-300 font-semibold">Foto de Perfil</Label>
+                {photoPreview ? (
+                  <div className="relative">
+                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-purple-200 dark:border-purple-800">
+                      <img 
+                        src={photoPreview} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPhotoPreview('')}
+                      className="absolute -top-2 -right-2 rounded-full w-8 h-8 p-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-4 border-dashed border-gray-300 dark:border-gray-600">
+                    <ImageIcon className="w-12 h-12 text-gray-400" />
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Label htmlFor="photo_upload" className="cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors">
+                      <Upload className="w-4 h-4" />
+                      {photoPreview ? 'Trocar Foto' : 'Adicionar Foto'}
+                    </div>
+                  </Label>
+                  <Input
+                    id="photo_upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Formatos aceitos: JPG, PNG, GIF (máx. 5MB)
+                </p>
+              </div>
+
+              {/* Campos de informação */}
               <div>
                 <Label htmlFor="doctor_name" className="text-gray-700 dark:text-gray-300">Nome Completo</Label>
                 <Input
@@ -2463,20 +2594,52 @@ export default function DashboardPage() {
                   className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
+              <div>
+                <Label htmlFor="doctor_bio" className="text-gray-700 dark:text-gray-300">Biografia (opcional)</Label>
+                <Textarea
+                  id="doctor_bio"
+                  value={doctorProfile?.bio || ''}
+                  onChange={(e) => setDoctorProfile({ ...doctorProfile!, bio: e.target.value })}
+                  placeholder="Conte um pouco sobre sua experiência e especialização..."
+                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
+                  rows={4}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="show_on_landing"
+                  checked={doctorProfile?.show_on_landing ?? true}
+                  onChange={(e) => setDoctorProfile({ ...doctorProfile!, show_on_landing: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="show_on_landing" className="text-gray-700 dark:text-gray-300 cursor-pointer">
+                  Exibir meu perfil na página de divulgação de médicos especialistas
+                </Label>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowDoctorInfoModal(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSaveDoctorInfo} className="bg-purple-600 hover:bg-purple-700 gap-2">
-                <User className="w-4 h-4" />
-                Salvar Dados
+              <Button onClick={handleSaveDoctorInfo} className="bg-purple-600 hover:bg-purple-700 gap-2" disabled={isUploadingPhoto}>
+                {isUploadingPhoto ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <User className="w-4 h-4" />
+                    Salvar Dados
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Venda de Doutor com Gateway Mercado Pago */}
+        {/* Modal: Venda de Doutor com Link Hotmart - mantém código existente */}
         <Dialog open={showDoctorSell} onOpenChange={setShowDoctorSell}>
           <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20">
             <DialogHeader>
@@ -2485,51 +2648,20 @@ export default function DashboardPage() {
                 Vender Acesso Premium
               </DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Registre uma venda com desconto de doutor via Mercado Pago
+                Compartilhe o link de pagamento com o cliente
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-6 rounded-lg border-2 border-orange-200 dark:border-orange-800">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Valor Original:</span>
-                  <span className="text-gray-900 dark:text-white font-semibold line-through">R$ {sellData.originalPrice.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Desconto Doutor:</span>
-                  <span className="text-green-600 dark:text-green-400 font-semibold">- R$ 10,00</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t-2 border-orange-300 dark:border-orange-700">
-                  <span className="text-gray-700 dark:text-gray-300 font-semibold">Valor Final:</span>
+                <div className="flex justify-between pt-2">
+                  <span className="text-gray-700 dark:text-gray-300 font-semibold">Valor:</span>
                   <span className="text-orange-600 dark:text-orange-400 font-bold text-2xl">R$ {sellData.discountedPrice.toFixed(2)}</span>
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="buyer_name" className="text-gray-700 dark:text-gray-300">Nome do Comprador</Label>
-                <Input
-                  id="buyer_name"
-                  type="text"
-                  value={sellData.buyerName}
-                  onChange={(e) => setSellData({ ...sellData, buyerName: e.target.value })}
-                  placeholder="João Silva"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-purple-500/20 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="buyer_email" className="text-gray-700 dark:text-gray-300">E-mail do Comprador *</Label>
-                <Input
-                  id="buyer_email"
-                  type="email"
-                  value={sellData.buyerEmail}
-                  onChange={(e) => setSellData({ ...sellData, buyerEmail: e.target.value })}
-                  placeholder="comprador@email.com"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-purple-500/20 text-gray-900 dark:text-white"
-                  required
-                />
               </div>
               <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
-                  O comprador será redirecionado para o checkout seguro do Mercado Pago
+                  Ao clicar em "Ir para Pagamento", você será redirecionado para o checkout seguro do Hotmart
                 </p>
               </div>
             </div>

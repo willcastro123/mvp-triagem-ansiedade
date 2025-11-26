@@ -29,56 +29,48 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Buscar configurações SMTP do admin_users (primeiro usuário admin)
-    const { data: adminUser, error: adminError } = await supabase
-      .from('admin_users')
-      .select('email')
-      .limit(1)
+    // Buscar configurações SMTP do banco de dados
+    const { data: smtpSettings, error: smtpError } = await supabase
+      .from('smtp_settings')
+      .select('*')
+      .eq('is_active', true)
       .single()
 
-    if (adminError || !adminUser) {
-      console.error('Erro ao buscar configurações de admin:', adminError)
+    if (smtpError || !smtpSettings) {
+      console.error('Erro ao buscar configurações SMTP:', smtpError)
       return NextResponse.json(
-        { error: 'Configurações de e-mail não encontradas. Configure o SMTP no painel administrativo.' },
+        { error: 'Configurações SMTP não encontradas. Configure o SMTP no painel administrativo.' },
         { status: 500 }
       )
     }
 
-    // Configurações SMTP padrão (você pode ajustar conforme necessário)
-    // Estas configurações devem ser armazenadas de forma segura
-    const smtpConfig = {
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      user: process.env.SMTP_USER || adminUser.email,
-      password: process.env.SMTP_PASSWORD || '',
-    }
-
-    if (!smtpConfig.password) {
+    // Validar configurações SMTP
+    if (!smtpSettings.smtp_host || !smtpSettings.smtp_user || !smtpSettings.smtp_password) {
       return NextResponse.json(
-        { error: 'Configurações SMTP incompletas. Configure SMTP_PASSWORD nas variáveis de ambiente.' },
+        { error: 'Configurações SMTP incompletas. Verifique as configurações no painel administrativo.' },
         { status: 500 }
       )
     }
 
-    // Criar transporter do nodemailer
+    // Criar transporter do nodemailer com as configurações do banco
     const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      host: smtpSettings.smtp_host,
+      port: smtpSettings.smtp_port,
+      secure: smtpSettings.smtp_secure,
       auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.password,
+        user: smtpSettings.smtp_user,
+        pass: smtpSettings.smtp_password,
       },
     })
 
     // Verificar conexão SMTP
     try {
       await transporter.verify()
+      console.log('Conexão SMTP verificada com sucesso')
     } catch (verifyError) {
       console.error('Erro ao verificar conexão SMTP:', verifyError)
       return NextResponse.json(
-        { error: 'Erro ao conectar com servidor de e-mail. Verifique as configurações SMTP.' },
+        { error: 'Erro ao conectar com servidor de e-mail. Verifique as configurações SMTP no painel administrativo.' },
         { status: 500 }
       )
     }
@@ -90,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     // Enviar e-mail
     const mailOptions = {
-      from: `"ZentiaMind" <${smtpConfig.user}>`,
+      from: `"${smtpSettings.from_name}" <${smtpSettings.from_email}>`,
       to: email,
       subject: template.subject,
       html: htmlContent,
@@ -98,6 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     await transporter.sendMail(mailOptions)
+    console.log('E-mail de redefinição enviado com sucesso para:', email)
 
     return NextResponse.json(
       { message: 'E-mail de redefinição enviado com sucesso!' },

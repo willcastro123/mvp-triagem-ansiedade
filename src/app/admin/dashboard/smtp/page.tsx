@@ -18,7 +18,7 @@ export default function SMTPSettingsPage() {
     port: '465',
     secure: true,
     user: 'suporte@zentiamind.com.br',
-    password: '09111964Wc!@'
+    password: ''
   })
 
   const handleSave = async () => {

@@ -31,6 +31,7 @@ interface Patient {
   name: string
   email: string
   phone?: string
+  anxiety_type?: string
 }
 
 export default function SchedulingPage() {
@@ -131,25 +132,59 @@ export default function SchedulingPage() {
 
   const loadPatients = async (doctorUserId: string) => {
     try {
-      const { data, error } = await supabase
+      console.log('🔄 Carregando pacientes autorizados para agendamento...')
+      
+      // Busca os pacientes autorizados do painel do doutor
+      const { data: accessData, error: accessError } = await supabase
         .from('doctor_patient_access')
-        .select(`
-          patient_id,
-          user_profiles!doctor_patient_access_patient_id_fkey (
-            id,
-            name,
-            email,
-            phone
-          )
-        `)
+        .select('patient_id')
         .eq('doctor_user_id', doctorUserId)
 
-      if (!error && data) {
-        const patientsData = data.map((item: any) => item.user_profiles).filter(Boolean)
-        setPatients(patientsData)
+      if (accessError) {
+        console.error('❌ Erro ao buscar acessos:', accessError)
+        return
       }
+
+      if (!accessData || accessData.length === 0) {
+        console.log('ℹ️ Nenhum paciente autorizado encontrado')
+        setPatients([])
+        return
+      }
+
+      const patientIds = accessData.map((item: any) => item.patient_id)
+      console.log('📋 IDs dos pacientes:', patientIds)
+
+      // Busca os dados completos dos pacientes
+      const { data: patientsData, error: patientsError } = await supabase
+        .from('user_profiles')
+        .select('id, name, email, phone, anxiety_type')
+        .in('id', patientIds)
+
+      if (patientsError) {
+        console.error('❌ Erro ao buscar dados dos pacientes:', patientsError)
+        return
+      }
+
+      console.log('✅ Pacientes carregados para agendamento:', patientsData?.length || 0)
+      setPatients(patientsData || [])
     } catch (error) {
-      console.error('Erro ao carregar pacientes:', error)
+      console.error('❌ Erro ao carregar pacientes:', error)
+    }
+  }
+
+  const handlePatientSelect = (patientId: string) => {
+    const selectedPatient = patients.find(p => p.id === patientId)
+    
+    if (selectedPatient) {
+      console.log('✅ Paciente selecionado:', selectedPatient.name)
+      setFormData({
+        ...formData,
+        patient_id: patientId,
+        patient_name: selectedPatient.name,
+        patient_email: selectedPatient.email,
+        patient_phone: selectedPatient.phone || ''
+      })
+      toast.success(`Paciente ${selectedPatient.name} selecionado!`)
     }
   }
 
@@ -627,16 +662,7 @@ export default function SchedulingPage() {
               <select
                 id="patient"
                 value={formData.patient_id}
-                onChange={(e) => {
-                  const patient = patients.find(p => p.id === e.target.value)
-                  setFormData({
-                    ...formData,
-                    patient_id: e.target.value,
-                    patient_name: patient?.name || '',
-                    patient_email: patient?.email || '',
-                    patient_phone: patient?.phone || ''
-                  })
-                }}
+                onChange={(e) => handlePatientSelect(e.target.value)}
                 className="w-full mt-1 p-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md"
               >
                 <option value="">Selecione um paciente</option>
@@ -646,7 +672,34 @@ export default function SchedulingPage() {
                   </option>
                 ))}
               </select>
+              {patients.length === 0 && (
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                  ⚠️ Nenhum paciente autorizado. Adicione pacientes no Painel do Doutor primeiro.
+                </p>
+              )}
             </div>
+
+            {/* Exibir dados do paciente selecionado */}
+            {formData.patient_id && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                  Dados do Paciente Selecionado:
+                </p>
+                <div className="space-y-1 text-sm">
+                  <p className="text-blue-800 dark:text-blue-200">
+                    <strong>Nome:</strong> {formData.patient_name}
+                  </p>
+                  <p className="text-blue-800 dark:text-blue-200">
+                    <strong>Email:</strong> {formData.patient_email}
+                  </p>
+                  {formData.patient_phone && (
+                    <p className="text-blue-800 dark:text-blue-200">
+                      <strong>Telefone:</strong> {formData.patient_phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
