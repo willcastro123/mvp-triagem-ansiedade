@@ -711,18 +711,6 @@ export default function DashboardPage() {
   }
 
   const handleDoctorSell = async () => {
-    if (!user || !sellData.buyerEmail) {
-      toast.error('Preencha o e-mail do comprador')
-      return
-    }
-
-    if (!doctorInfo) {
-      toast.error('Apenas doutores podem realizar vendas')
-      return
-    }
-
-    setIsProcessingPayment(true)
-
     try {
       // Redirecionar diretamente para o link do Hotmart
       const hotmartLink = 'https://pay.hotmart.com/P103056552X?sck=HOTMART_PRODUCT_PAGE&off=xfu3cyhr&hotfeature=32&_gl=1*1m9tg0l*_ga*MTE0NzcyODYwNS4xNzYzNzE3MDM5*_ga_GQH2V1F11Q*czE3NjM3MTcwMzckbzEkZzEkdDE3NjM3MjA1MzQkajYwJGwwJGgw*_gcl_au*MTI0NDM4ODg1MC4xNzYzNzE3MDM5LjE1Mzg3OTcyMDMuMTc2MzcxNzA4MS4xNzYzNzIwMzY1*FPAU*MTI0NDM4ODg1MC4xNzYzNzE3MDM5&bid=1763720540240'
@@ -2639,7 +2627,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Venda de Doutor com Link Hotmart - mantém código existente */}
+        {/* Modal: Venda de Doutor com Link Hotmart */}
         <Dialog open={showDoctorSell} onOpenChange={setShowDoctorSell}>
           <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20">
             <DialogHeader>
@@ -2648,7 +2636,7 @@ export default function DashboardPage() {
                 Vender Acesso Premium
               </DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Compartilhe o link de pagamento com o cliente
+                Redirecionar para página de pagamento
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -2661,7 +2649,7 @@ export default function DashboardPage() {
               <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
-                  Ao clicar em "Ir para Pagamento", você será redirecionado para o checkout seguro do Hotmart
+                  Ao clicar em "Ir para Pagamento", você será redirecionado para o checkout seguro
                 </p>
               </div>
             </div>

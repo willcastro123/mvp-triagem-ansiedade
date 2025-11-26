@@ -1,28 +1,74 @@
 import nodemailer from 'nodemailer'
 import { getSupabaseClient } from './supabase'
 
-// Configuração do transporte SMTP com Titan Email
-const transporter = nodemailer.createTransport({
-  host: 'smtp.titan.email',
-  port: 465,
-  secure: true, // SSL/TLS
-  auth: {
-    user: process.env.SMTP_USER || 'suporte@zentiamind.com.br',
-    pass: process.env.SMTP_PASSWORD || '09111964Wc!@',
-  },
-  tls: {
-    rejectUnauthorized: false // Aceita certificados auto-assinados
-  }
-})
+// Função para buscar configurações SMTP do banco de dados
+async function getSMTPConfig() {
+  try {
+    const supabase = getSupabaseClient()
+    
+    const { data: config, error } = await supabase
+      .from('smtp_settings')
+      .select('*')
+      .eq('is_active', true)
+      .single()
 
-// Verificar conexão SMTP
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Erro na configuração SMTP:', error)
-  } else {
-    console.log('✅ Servidor SMTP pronto para enviar e-mails')
+    if (error || !config) {
+      console.warn('⚠️ Configurações SMTP não encontradas no banco. Usando variáveis de ambiente.')
+      return null
+    }
+
+    console.log('✅ Configurações SMTP carregadas do banco de dados')
+    return {
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      user: config.user,
+      password: config.password
+    }
+  } catch (error) {
+    console.error('❌ Erro ao buscar configurações SMTP:', error)
+    return null
   }
-})
+}
+
+// Função para criar transporter com configurações dinâmicas
+async function createTransporter() {
+  const dbConfig = await getSMTPConfig()
+  
+  if (dbConfig) {
+    // Usar configurações do banco de dados
+    return nodemailer.createTransport({
+      host: dbConfig.host,
+      port: dbConfig.port,
+      secure: dbConfig.secure,
+      auth: {
+        user: dbConfig.user,
+        pass: dbConfig.password,
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    })
+  }
+  
+  // Fallback para variáveis de ambiente
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
+    throw new Error('Configurações SMTP não encontradas. Configure o SMTP no painel administrativo.')
+  }
+  
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.titan.email',
+    port: parseInt(process.env.SMTP_PORT || '465'),
+    secure: process.env.SMTP_SECURE === 'true' || true,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false
+    }
+  })
+}
 
 interface SendEmailOptions {
   to: string
@@ -35,8 +81,14 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   try {
     console.log('📧 Enviando e-mail para:', to)
     
+    const transporter = await createTransporter()
+    
+    // Buscar configuração do remetente do banco ou usar padrão
+    const dbConfig = await getSMTPConfig()
+    const fromEmail = dbConfig?.user || process.env.SMTP_USER || 'suporte@zentiamind.com.br'
+    
     const info = await transporter.sendMail({
-      from: `"Zentia Mind" <${process.env.SMTP_USER || 'suporte@zentiamind.com.br'}>`,
+      from: `"Zentia Mind" <${fromEmail}>`,
       to,
       subject,
       html,

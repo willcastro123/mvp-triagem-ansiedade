@@ -1,39 +1,111 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Mail, Server, Lock, User } from 'lucide-react'
+import { ArrowLeft, Save, Mail, Server, Lock, User, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
 
 export default function SMTPSettingsPage() {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   
   const [smtpConfig, setSmtpConfig] = useState({
     host: 'smtp.titan.email',
     port: '465',
     secure: true,
     user: 'suporte@zentiamind.com.br',
-    password: '09111964Wc!@'
+    password: ''
   })
 
+  useEffect(() => {
+    loadSMTPConfig()
+  }, [])
+
+  const loadSMTPConfig = async () => {
+    try {
+      setIsLoading(true)
+      const { data, error } = await supabase
+        .from('smtp_settings')
+        .select('*')
+        .eq('is_active', true)
+        .single()
+
+      if (!error && data) {
+        setSmtpConfig({
+          host: data.host,
+          port: data.port.toString(),
+          secure: data.secure,
+          user: data.user,
+          password: data.password
+        })
+        toast.success('Configurações SMTP carregadas!')
+      } else {
+        console.log('Nenhuma configuração SMTP encontrada, usando padrões')
+      }
+    } catch (error) {
+      console.error('Erro ao carregar configurações:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSave = async () => {
+    if (!smtpConfig.host || !smtpConfig.port || !smtpConfig.user || !smtpConfig.password) {
+      toast.error('Preencha todos os campos obrigatórios')
+      return
+    }
+
     setIsSaving(true)
     try {
-      // Aqui você pode salvar as configurações no banco ou em variáveis de ambiente
-      // Por enquanto, apenas mostra uma mensagem de sucesso
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Desativar todas as configurações existentes
+      await supabase
+        .from('smtp_settings')
+        .update({ is_active: false })
+        .neq('id', '00000000-0000-0000-0000-000000000000') // Atualiza todos
+
+      // Inserir nova configuração ativa
+      const { error } = await supabase
+        .from('smtp_settings')
+        .insert([{
+          host: smtpConfig.host,
+          port: parseInt(smtpConfig.port),
+          secure: smtpConfig.secure,
+          user: smtpConfig.user,
+          password: smtpConfig.password,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+
+      if (error) {
+        console.error('Erro ao salvar:', error)
+        throw error
+      }
+
       toast.success('Configurações SMTP salvas com sucesso!')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar configurações:', error)
-      toast.error('Erro ao salvar configurações')
+      toast.error('Erro ao salvar configurações: ' + (error.message || 'Erro desconhecido'))
     } finally {
       setIsSaving(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando configurações...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -73,7 +145,7 @@ export default function SMTPSettingsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="smtp-host">Host SMTP</Label>
+                <Label htmlFor="smtp-host">Host SMTP *</Label>
                 <Input
                   id="smtp-host"
                   value={smtpConfig.host}
@@ -82,7 +154,7 @@ export default function SMTPSettingsPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="smtp-port">Porta</Label>
+                <Label htmlFor="smtp-port">Porta *</Label>
                 <Input
                   id="smtp-port"
                   value={smtpConfig.port}
@@ -95,7 +167,7 @@ export default function SMTPSettingsPage() {
             <div>
               <Label htmlFor="smtp-user" className="flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Usuário (E-mail)
+                Usuário (E-mail) *
               </Label>
               <Input
                 id="smtp-user"
@@ -109,7 +181,7 @@ export default function SMTPSettingsPage() {
             <div>
               <Label htmlFor="smtp-password" className="flex items-center gap-2">
                 <Lock className="w-4 h-4" />
-                Senha
+                Senha *
               </Label>
               <Input
                 id="smtp-password"
@@ -120,17 +192,30 @@ export default function SMTPSettingsPage() {
               />
             </div>
 
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="smtp-secure"
+                checked={smtpConfig.secure}
+                onChange={(e) => setSmtpConfig({ ...smtpConfig, secure: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="smtp-secure" className="cursor-pointer">
+                Usar SSL/TLS (recomendado)
+              </Label>
+            </div>
+
             <div className="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
               <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Configuração Atual:</strong> Titan Email (HostGator) - suporte@zentiamind.com.br
+                <strong>Configuração Atual:</strong> {smtpConfig.host} - {smtpConfig.user}
               </p>
             </div>
 
-            <div className="pt-4">
+            <div className="flex gap-2 pt-4">
               <Button 
                 onClick={handleSave} 
-                className="w-full"
+                className="flex-1"
                 disabled={isSaving}
               >
                 {isSaving ? (
@@ -145,6 +230,13 @@ export default function SMTPSettingsPage() {
                   </>
                 )}
               </Button>
+              <Button 
+                onClick={loadSMTPConfig} 
+                variant="outline"
+                disabled={isLoading}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -158,8 +250,8 @@ export default function SMTPSettingsPage() {
                   <Mail className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">Ativo</p>
-                  <p className="text-green-100">Servidor SMTP Conectado</p>
+                  <p className="text-2xl font-bold">Configurado</p>
+                  <p className="text-green-100">Servidor SMTP Pronto</p>
                 </div>
               </div>
             </CardContent>
@@ -172,8 +264,8 @@ export default function SMTPSettingsPage() {
                   <Server className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">SSL/TLS</p>
-                  <p className="text-blue-100">Conexão Segura</p>
+                  <p className="text-2xl font-bold">{smtpConfig.secure ? 'SSL/TLS' : 'Sem SSL'}</p>
+                  <p className="text-blue-100">{smtpConfig.secure ? 'Conexão Segura' : 'Conexão Não Segura'}</p>
                 </div>
               </div>
             </CardContent>
