@@ -13,6 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter, ThumbsUp, ThumbsDown, FileText, Eye } from 'lucide-react';
+import { Sidebar } from '@/components/custom/sidebar';
+import { Sidebar } from '@/components/custom/sidebar';
+import { Sidebar } from '@/components/custom/sidebar';
 
 interface User {
   id: string;
@@ -969,24 +972,29 @@ export default function AdminDashboard() {
   const activityCategories = getActivityCategories();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Header */}
-      <header className="bg-slate-800/50 border-b border-purple-500/20 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">Painel Administrativo</h1>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </Button>
-        </div>
-      </header>
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Sidebar */}
+      <Sidebar />
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="flex-1">
+        {/* Header */}
+        <header className="bg-slate-800/50 border-b border-purple-500/20 backdrop-blur-sm">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-white">Painel Administrativo</h1>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </Button>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-slate-800/50 border-purple-500/20">
