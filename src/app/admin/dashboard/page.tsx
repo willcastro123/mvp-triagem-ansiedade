@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { LogOut, Users, Activity, TrendingUp, Calendar, Edit, Trash2, UserCheck, Plus, Shield, MessageSquare, Video, Upload, Key, UserPlus, DollarSign, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
 
 interface User {
   id: string;
@@ -101,6 +101,10 @@ export default function AdminDashboard() {
     pendingInvoices: 0,
     paidInvoices: 0
   });
+
+  // Estados para filtros de atividades
+  const [activitySearchTerm, setActivitySearchTerm] = useState('');
+  const [selectedActivityCategory, setSelectedActivityCategory] = useState<string>('all');
 
   // Estados para modais
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -747,8 +751,55 @@ export default function AdminDashboard() {
       case 'exposure': return '🎯';
       case 'breathing': return '🫁';
       case 'sale': return '💰';
+      case 'meditation': return '🧘';
+      case 'quiz': return '📝';
+      case 'scheduling': return '📅';
       default: return '📝';
     }
+  };
+
+  const getActivityCategoryLabel = (type: string) => {
+    switch (type) {
+      case 'login': return 'Autenticação';
+      case 'exposure': return 'Exposição';
+      case 'breathing': return 'Respiração';
+      case 'sale': return 'Vendas';
+      case 'meditation': return 'Meditação';
+      case 'quiz': return 'Quiz';
+      case 'scheduling': return 'Agendamento';
+      default: return 'Outros';
+    }
+  };
+
+  const getActivityCategories = () => {
+    const categories = new Set<string>();
+    activities.forEach((activity: any) => {
+      categories.add(activity.activity_type);
+    });
+    return Array.from(categories);
+  };
+
+  const filterActivities = () => {
+    let filtered = activities;
+
+    // Filtrar por categoria
+    if (selectedActivityCategory !== 'all') {
+      filtered = filtered.filter((activity: any) => 
+        activity.activity_type === selectedActivityCategory
+      );
+    }
+
+    // Filtrar por termo de busca
+    if (activitySearchTerm.trim()) {
+      const searchLower = activitySearchTerm.toLowerCase();
+      filtered = filtered.filter((activity: any) => 
+        activity.activity_description.toLowerCase().includes(searchLower) ||
+        activity.user_name.toLowerCase().includes(searchLower) ||
+        activity.user_email.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return filtered;
   };
 
   const getStatusBadge = (status: string) => {
@@ -778,6 +829,9 @@ export default function AdminDashboard() {
   const filterInvoicesByStatus = (status: string) => {
     return invoices.filter(inv => inv.status === status);
   };
+
+  const filteredActivities = filterActivities();
+  const activityCategories = getActivityCategories();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -1369,30 +1423,93 @@ export default function AdminDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {activities.map((activity: any) => (
-                    <div
-                      key={activity.id}
-                      className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-purple-500/10"
-                    >
-                      <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-purple-400">
-                        {getActivityIcon(activity.activity_type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-white">{activity.user_name}</p>
-                          <Badge variant="outline" className="text-xs border-purple-500/20 text-gray-400">
-                            {activity.activity_type}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-400 mb-1">{activity.activity_description}</p>
-                        <p className="text-xs text-gray-500">{activity.user_email}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs text-gray-500">{formatDate(activity.created_at)}</p>
-                      </div>
+                {/* Filtros de Atividades */}
+                <div className="mb-6 space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {/* Campo de Pesquisa */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="Pesquisar por descrição, usuário ou e-mail..."
+                        value={activitySearchTerm}
+                        onChange={(e) => setActivitySearchTerm(e.target.value)}
+                        className="pl-10 bg-slate-900 border-purple-500/20 text-white"
+                      />
                     </div>
-                  ))}
+
+                    {/* Seletor de Categoria */}
+                    <div className="relative">
+                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-10 pointer-events-none" />
+                      <Select value={selectedActivityCategory} onValueChange={setSelectedActivityCategory}>
+                        <SelectTrigger className="pl-10 bg-slate-900 border-purple-500/20 text-white">
+                          <SelectValue placeholder="Filtrar por categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas as Categorias</SelectItem>
+                          {activityCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {getActivityIcon(category)} {getActivityCategoryLabel(category)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Indicador de Resultados */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-400">
+                      Mostrando {filteredActivities.length} de {activities.length} atividades
+                    </p>
+                    {(activitySearchTerm || selectedActivityCategory !== 'all') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setActivitySearchTerm('');
+                          setSelectedActivityCategory('all');
+                        }}
+                        className="gap-2 border-purple-500/20 hover:bg-purple-500/10"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Limpar Filtros
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lista de Atividades Filtradas */}
+                <div className="space-y-4">
+                  {filteredActivities.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Activity className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                      <p className="text-gray-400">Nenhuma atividade encontrada com os filtros aplicados.</p>
+                    </div>
+                  ) : (
+                    filteredActivities.map((activity: any) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-colors"
+                      >
+                        <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0 text-purple-400">
+                          {getActivityIcon(activity.activity_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-white">{activity.user_name}</p>
+                            <Badge variant="outline" className="text-xs border-purple-500/20 text-gray-400">
+                              {getActivityCategoryLabel(activity.activity_type)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-400 mb-1">{activity.activity_description}</p>
+                          <p className="text-xs text-gray-500">{activity.user_email}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-gray-500">{formatDate(activity.created_at)}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
