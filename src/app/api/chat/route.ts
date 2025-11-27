@@ -29,7 +29,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ reply });
     
-  } catch (error) {
-    return NextResponse.json({ error: "Erro na IA" }, { status: 500 });
+  } catch (error: any) {
+    // ISSO VAI MOSTRAR O ERRO REAL NOS LOGS DA VERCEL
+    console.error("ERRO DETALHADO DA OPENAI:", error); 
+    
+    // Isso manda o erro para o navegador (para você ver no Inspecionar)
+    return NextResponse.json(
+      { error: "Erro interno", details: error.message }, 
+      { status: 500 }
+    );
   }
 }
+
