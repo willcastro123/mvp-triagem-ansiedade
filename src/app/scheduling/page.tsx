@@ -19,7 +19,6 @@ interface Appointment {
   patient_phone: string
   appointment_date: string
   appointment_time: string
-  duration: number
   status: 'scheduled' | 'completed' | 'cancelled' | 'confirmed'
   notes: string
   type: string
@@ -57,7 +56,6 @@ export default function SchedulingPage() {
     patient_phone: '',
     date: '',
     time: '',
-    duration: 60,
     type: 'Consulta Regular',
     notes: ''
   })
@@ -204,7 +202,6 @@ export default function SchedulingPage() {
           patient_id: formData.patient_id,
           appointment_date: formData.date,
           appointment_time: formData.time,
-          duration: formData.duration,
           type: formData.type,
           notes: formData.notes,
           status: 'scheduled'
@@ -231,7 +228,6 @@ export default function SchedulingPage() {
         .update({
           appointment_date: formData.date,
           appointment_time: formData.time,
-          duration: formData.duration,
           type: formData.type,
           notes: formData.notes,
           status: formData.patient_id as any // status vem do formData.patient_id temporariamente
@@ -295,7 +291,6 @@ export default function SchedulingPage() {
       patient_phone: '',
       date: '',
       time: '',
-      duration: 60,
       type: 'Consulta Regular',
       notes: ''
     })
@@ -310,7 +305,6 @@ export default function SchedulingPage() {
       patient_phone: appointment.patient_phone,
       date: appointment.appointment_date,
       time: appointment.appointment_time,
-      duration: appointment.duration,
       type: appointment.type,
       notes: appointment.notes
     })
@@ -724,25 +718,14 @@ export default function SchedulingPage() {
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="duration">Duração (minutos)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="type">Tipo de Consulta</Label>
-                <Input
-                  id="type"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  placeholder="Ex: Consulta Regular, Retorno, etc."
-                />
-              </div>
+            <div>
+              <Label htmlFor="type">Tipo de Consulta</Label>
+              <Input
+                id="type"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                placeholder="Ex: Consulta Regular, Retorno, etc."
+              />
             </div>
 
             <div>
@@ -817,24 +800,13 @@ export default function SchedulingPage() {
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit_duration">Duração (minutos)</Label>
-                <Input
-                  id="edit_duration"
-                  type="number"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit_type">Tipo de Consulta</Label>
-                <Input
-                  id="edit_type"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                />
-              </div>
+            <div>
+              <Label htmlFor="edit_type">Tipo de Consulta</Label>
+              <Input
+                id="edit_type"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              />
             </div>
 
             <div>
