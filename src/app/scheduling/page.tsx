@@ -48,6 +48,7 @@ export default function SchedulingPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [doctorId, setDoctorId] = useState<string>('')
 
   const [formData, setFormData] = useState({
     patient_id: '',
@@ -89,8 +90,9 @@ export default function SchedulingPage() {
         return
       }
 
+      setDoctorId(data.id)
       setIsLoading(false)
-      loadAppointments(userId)
+      loadAppointments(data.id)
       loadPatients(userId)
     } catch (error) {
       console.error('Erro ao verificar doutor:', error)
@@ -98,7 +100,7 @@ export default function SchedulingPage() {
     }
   }
 
-  const loadAppointments = async (doctorUserId: string) => {
+  const loadAppointments = async (doctorIdParam: string) => {
     try {
       const { data, error } = await supabase
         .from('appointments')
@@ -110,7 +112,7 @@ export default function SchedulingPage() {
             phone
           )
         `)
-        .eq('doctor_user_id', doctorUserId)
+        .eq('doctor_id', doctorIdParam)
         .order('appointment_date', { ascending: true })
         .order('appointment_time', { ascending: true })
 
@@ -198,7 +200,7 @@ export default function SchedulingPage() {
       const { error } = await supabase
         .from('appointments')
         .insert([{
-          doctor_user_id: user?.id,
+          doctor_id: doctorId,
           patient_id: formData.patient_id,
           appointment_date: formData.date,
           appointment_time: formData.time,
@@ -213,10 +215,10 @@ export default function SchedulingPage() {
       toast.success('Consulta agendada com sucesso!')
       setShowAddModal(false)
       resetForm()
-      if (user) loadAppointments(user.id)
+      if (doctorId) loadAppointments(doctorId)
     } catch (error: any) {
       console.error('Erro ao agendar consulta:', error)
-      toast.error('Erro ao agendar consulta')
+      toast.error('Erro ao agendar consulta: ' + error.message)
     }
   }
 
@@ -242,7 +244,7 @@ export default function SchedulingPage() {
       setShowEditModal(false)
       setSelectedAppointment(null)
       resetForm()
-      if (user) loadAppointments(user.id)
+      if (doctorId) loadAppointments(doctorId)
     } catch (error: any) {
       console.error('Erro ao atualizar consulta:', error)
       toast.error('Erro ao atualizar consulta')
@@ -261,7 +263,7 @@ export default function SchedulingPage() {
       if (error) throw error
 
       toast.success('Consulta excluída com sucesso!')
-      if (user) loadAppointments(user.id)
+      if (doctorId) loadAppointments(doctorId)
     } catch (error: any) {
       console.error('Erro ao excluir consulta:', error)
       toast.error('Erro ao excluir consulta')
@@ -278,7 +280,7 @@ export default function SchedulingPage() {
       if (error) throw error
 
       toast.success('Status atualizado!')
-      if (user) loadAppointments(user.id)
+      if (doctorId) loadAppointments(doctorId)
     } catch (error: any) {
       console.error('Erro ao atualizar status:', error)
       toast.error('Erro ao atualizar status')
