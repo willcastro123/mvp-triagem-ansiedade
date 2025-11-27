@@ -35,11 +35,6 @@ export async function POST(req: Request) {
       temperature: 0.8, // Aumentei um pouco para ele ser mais criativo e menos robótico
     });
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Modelo rápido e barato
-      messages: [systemPrompt, ...messages],
-    });
-
     const reply = completion.choices[0].message.content;
 
     return NextResponse.json({ reply });
@@ -55,5 +50,6 @@ export async function POST(req: Request) {
     );
   }
 }
+
 
 
