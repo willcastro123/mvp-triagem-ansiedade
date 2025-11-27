@@ -20,11 +20,12 @@ export default function ChatPage() {
   ])
   const [inputMessage, setInputMessage] = useState('')
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!inputMessage.trim()) return
 
+    // 1. Cria a mensagem do usuário e mostra na tela imediatamente
     const userMessage = {
       id: Date.now(),
       text: inputMessage,
@@ -32,19 +33,43 @@ export default function ChatPage() {
       timestamp: new Date().toISOString()
     }
 
-    setMessages([...messages, userMessage])
-    setInputMessage('')
+    // Atualiza a lista de mensagens na tela
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInputMessage(''); // Limpa o campo
 
-    // Simula resposta do bot
-    setTimeout(() => {
-      const botResponse = {
-        id: Date.now() + 1,
-        text: 'Entendo como você está se sentindo. Lembre-se de que é normal ter altos e baixos. Estou aqui para apoiá-lo.',
-        sender: 'bot',
-        timestamp: new Date().toISOString()
+    try {
+      // 2. Prepara o histórico para a IA entender o contexto
+      // A IA precisa saber quem é 'user' e quem é 'assistant' (bot)
+      const apiMessages = newMessages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.text
+      }));
+
+      // 3. Chama o nosso arquivo "route.ts"
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages })
+      });
+
+      const data = await response.json();
+
+      if (data.reply) {
+        // 4. Cria a mensagem da IA com a resposta real
+        const botResponse = {
+          id: Date.now() + 1,
+          text: data.reply,
+          sender: 'bot',
+          timestamp: new Date().toISOString()
+        }
+        setMessages(prev => [...prev, botResponse]);
       }
-      setMessages(prev => [...prev, botResponse])
-    }, 1000)
+
+    } catch (error) {
+      console.error("Erro ao chamar a IA:", error);
+      toast.error("Ops, tive um problema para responder. Tente novamente.");
+    }
   }
 
   return (
