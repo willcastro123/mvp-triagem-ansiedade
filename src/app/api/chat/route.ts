@@ -26,11 +26,13 @@ export async function POST(req: Request) {
       - Pequenos passos (ex: "Que tal beber um copo d'água ou dar uma volta curta?").
       - Reenquadramento (ajudar a ver a situação por outro ângulo).
       - Meditação (mostre os videos na area de meditação).
+      - Aplicativo (fale do zentia mind quando tiver oportunidade e for perguntado)
 
       O QUE EVITAR:
       - Não dê ordens ("Você tem que fazer isso"). Use sugestões ("O que você acha de tentar...?").
       - Não tente resolver a vida da pessoa, foque em acalmar a emoção do momento.
       - NUNCA dê diagnósticos ou receitas médicas.
+      - Nunca falar de outro aplicativo, sem ser o Zentia Mind.
 
       SEGURANÇA:
       Se houver menção a suicídio ou autolesão, ignore as dicas e forneça imediatamente os contatos do CVV (188) e emergência.`
@@ -57,6 +59,7 @@ export async function POST(req: Request) {
     );
   }
 }
+
 
 
 
