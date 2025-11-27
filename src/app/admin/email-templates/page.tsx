@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { getSupabaseClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
+import { AdminAuthGuard } from '@/components/auth/AdminAuthGuard'
 
 interface EmailTemplate {
   id: string
@@ -25,12 +26,10 @@ interface EmailTemplate {
   updated_at: string
 }
 
-export default function EmailTemplatesPage() {
+function EmailTemplatesContent() {
   const router = useRouter()
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-  const [isAuthorized, setIsAuthorized] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -51,55 +50,11 @@ export default function EmailTemplatesPage() {
   })
 
   useEffect(() => {
-    checkAdminAccess()
+    loadTemplates()
   }, [])
-
-  const checkAdminAccess = async () => {
-    try {
-      const supabase = getSupabaseClient()
-      
-      // Verificar se o usuário está autenticado
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        toast.error('Você precisa estar autenticado para acessar esta página')
-        router.push('/login')
-        return
-      }
-
-      // Verificar se o usuário é admin
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single()
-
-      if (profileError || !profile) {
-        toast.error('Erro ao verificar permissões')
-        router.push('/')
-        return
-      }
-
-      if (profile.role !== 'admin') {
-        toast.error('Acesso negado. Apenas administradores podem acessar esta página.')
-        router.push('/')
-        return
-      }
-
-      // Usuário autorizado
-      setIsAuthorized(true)
-      setIsCheckingAuth(false)
-      loadTemplates()
-    } catch (error) {
-      console.error('Erro ao verificar acesso:', error)
-      toast.error('Erro ao verificar permissões')
-      router.push('/')
-    }
-  }
 
   const loadTemplates = async () => {
     try {
-      const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('email_templates')
         .select('*')
@@ -140,8 +95,6 @@ export default function EmailTemplatesPage() {
 
   const handleSave = async () => {
     try {
-      const supabase = getSupabaseClient()
-
       if (isCreating) {
         const { error } = await supabase
           .from('email_templates')
@@ -300,23 +253,6 @@ export default function EmailTemplatesPage() {
     { value: 'custom', label: 'Personalizado' }
   ]
 
-  // Tela de carregamento durante verificação de autenticação
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Verificando permissões...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Se não autorizado, não renderiza nada (já foi redirecionado)
-  if (!isAuthorized) {
-    return null
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center">
@@ -337,7 +273,7 @@ export default function EmailTemplatesPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/admin/dashboard')}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -638,5 +574,13 @@ export default function EmailTemplatesPage() {
         </Dialog>
       </div>
     </div>
+  )
+}
+
+export default function EmailTemplatesPage() {
+  return (
+    <AdminAuthGuard>
+      <EmailTemplatesContent />
+    </AdminAuthGuard>
   )
 }

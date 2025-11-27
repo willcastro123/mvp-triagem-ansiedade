@@ -17,8 +17,8 @@ interface Appointment {
   patient_name: string
   patient_email: string
   patient_phone: string
-  date: string
-  time: string
+  appointment_date: string
+  appointment_time: string
   duration: number
   status: 'scheduled' | 'completed' | 'cancelled' | 'confirmed'
   notes: string
@@ -111,8 +111,8 @@ export default function SchedulingPage() {
           )
         `)
         .eq('doctor_user_id', doctorUserId)
-        .order('date', { ascending: true })
-        .order('time', { ascending: true })
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true })
 
       if (!error && data) {
         const appointmentsData = data.map((apt: any) => ({
@@ -200,8 +200,8 @@ export default function SchedulingPage() {
         .insert([{
           doctor_user_id: user?.id,
           patient_id: formData.patient_id,
-          date: formData.date,
-          time: formData.time,
+          appointment_date: formData.date,
+          appointment_time: formData.time,
           duration: formData.duration,
           type: formData.type,
           notes: formData.notes,
@@ -227,8 +227,8 @@ export default function SchedulingPage() {
       const { error } = await supabase
         .from('appointments')
         .update({
-          date: formData.date,
-          time: formData.time,
+          appointment_date: formData.date,
+          appointment_time: formData.time,
           duration: formData.duration,
           type: formData.type,
           notes: formData.notes,
@@ -306,8 +306,8 @@ export default function SchedulingPage() {
       patient_name: appointment.patient_name,
       patient_email: appointment.patient_email,
       patient_phone: appointment.patient_phone,
-      date: appointment.date,
-      time: appointment.time,
+      date: appointment.appointment_date,
+      time: appointment.appointment_time,
       duration: appointment.duration,
       type: appointment.type,
       notes: appointment.notes
@@ -359,7 +359,7 @@ export default function SchedulingPage() {
 
   const getAppointmentsForDay = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0]
-    return filteredAppointments.filter(apt => apt.date === dateStr)
+    return filteredAppointments.filter(apt => apt.appointment_date === dateStr)
   }
 
   const getStatusColor = (status: string) => {
@@ -544,7 +544,7 @@ export default function SchedulingPage() {
                         >
                           <div className="flex items-center gap-1 mb-1">
                             <Clock className="w-3 h-3" />
-                            <span className="font-semibold">{apt.time}</span>
+                            <span className="font-semibold">{apt.appointment_time}</span>
                           </div>
                           <p className="font-medium truncate">{apt.patient_name}</p>
                           <p className="text-xs opacity-75 truncate">{apt.type}</p>
@@ -583,9 +583,9 @@ export default function SchedulingPage() {
                     filteredAppointments.map((apt) => (
                       <tr key={apt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                         <td className="px-4 py-3 text-sm">
-                          {new Date(apt.date).toLocaleDateString('pt-BR')}
+                          {new Date(apt.appointment_date).toLocaleDateString('pt-BR')}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium">{apt.time}</td>
+                        <td className="px-4 py-3 text-sm font-medium">{apt.appointment_time}</td>
                         <td className="px-4 py-3 text-sm">{apt.patient_name}</td>
                         <td className="px-4 py-3 text-sm">
                           <div className="flex flex-col gap-1">

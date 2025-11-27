@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { AdminAuthGuard } from '@/components/auth/AdminAuthGuard'
 
-export default function SMTPSettingsPage() {
+function SMTPSettingsContent() {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -309,5 +310,13 @@ export default function SMTPSettingsPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function SMTPSettingsPage() {
+  return (
+    <AdminAuthGuard>
+      <SMTPSettingsContent />
+    </AdminAuthGuard>
   )
 }

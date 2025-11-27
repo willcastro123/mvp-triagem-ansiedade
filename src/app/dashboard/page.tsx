@@ -301,10 +301,28 @@ export default function DashboardPage() {
         .single()
 
       if (!error && data) {
-        setDoctorInfo(data)
+        // Buscar informações de contato da tabela separada
+        const { data: contactData } = await supabase
+          .from('doctor_contact_info')
+          .select('*')
+          .eq('doctor_id', data.id)
+          .single()
+
+        // Mesclar dados
+        const mergedData = {
+          ...data,
+          name: contactData?.name || '',
+          city: contactData?.city || '',
+          address: contactData?.address || '',
+          phone: contactData?.phone || '',
+          pix_key: contactData?.pix_key || '',
+          payment_link: contactData?.payment_link || ''
+        }
+
+        setDoctorInfo(mergedData)
         setFinancialForm({
-          pixKey: data.pix_key || '',
-          paymentLink: data.payment_link || ''
+          pixKey: mergedData.pix_key || '',
+          paymentLink: mergedData.payment_link || ''
         })
         loadDoctorProfile(data.id)
         loadAuthorizedPatients(userId)
@@ -431,7 +449,7 @@ export default function DashboardPage() {
           )
         `)
         .eq('doctor_user_id', doctorUserId)
-        .order('date', { ascending: true })
+        .order('appointment_date', { ascending: true })
 
       if (!error && data) {
         const appointmentsData = data.map((apt: any) => ({
@@ -712,9 +730,9 @@ export default function DashboardPage() {
 
   const handleDoctorSell = async () => {
     try {
-      // Redirecionar diretamente para o link do Hotmart
-      const hotmartLink = 'https://pay.hotmart.com/P103056552X?sck=HOTMART_PRODUCT_PAGE&off=xfu3cyhr&hotfeature=32&_gl=1*1m9tg0l*_ga*MTE0NzcyODYwNS4xNzYzNzE3MDM5*_ga_GQH2V1F11Q*czE3NjM3MTcwMzckbzEkZzEkdDE3NjM3MjA1MzQkajYwJGwwJGgw*_gcl_au*MTI0NDM4ODg1MC4xNzYzNzE3MDM5LjE1Mzg3OTcyMDMuMTc2MzcxNzA4MS4xNzYzNzIwMzY1*FPAU*MTI0NDM4ODg1MC4xNzYzNzE3MDM5&bid=1763720540240'
-      window.location.href = hotmartLink
+      // Redirecionar diretamente para o link do Keoto
+      const keotoLink = 'https://checkout.keoto.com/9e473550-9f49-441e-984c-4a5a6ea05a1a'
+      window.location.href = keotoLink
     } catch (error: any) {
       console.error('Erro ao processar pagamento:', error)
       toast.error(error.message || 'Erro ao processar pagamento. Tente novamente.')
@@ -770,8 +788,8 @@ export default function DashboardPage() {
         .insert([{
           doctor_user_id: user?.id,
           patient_id: appointmentForm.patientId,
-          date: appointmentForm.date,
-          time: appointmentForm.time,
+          appointment_date: appointmentForm.date,
+          appointment_time: appointmentForm.time,
           notes: appointmentForm.notes,
           status: 'scheduled'
         }])
@@ -798,12 +816,13 @@ export default function DashboardPage() {
 
     try {
       const { error } = await supabase
-        .from('doctors')
-        .update({
+        .from('doctor_contact_info')
+        .upsert({
+          doctor_id: doctorInfo.id,
           pix_key: financialForm.pixKey,
-          payment_link: financialForm.paymentLink
-        })
-        .eq('id', doctorInfo.id)
+          payment_link: financialForm.paymentLink,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'doctor_id' })
 
       if (error) throw error
 
@@ -847,18 +866,22 @@ export default function DashboardPage() {
     if (!doctorInfo || !doctorProfile) return
 
     try {
-      // Atualizar informações básicas do doutor
-      const { error: doctorError } = await supabase
-        .from('doctors')
-        .update({
-          name: doctorInfo.name,
-          city: doctorInfo.city,
-          address: doctorInfo.address,
-          phone: doctorInfo.phone
-        })
-        .eq('id', doctorInfo.id)
+      // Atualizar informações de contato do doutor na tabela separada
+      const contactData = {
+        doctor_id: doctorInfo.id,
+        name: doctorInfo.name,
+        city: doctorInfo.city,
+        address: doctorInfo.address,
+        phone: doctorInfo.phone,
+        updated_at: new Date().toISOString()
+      }
 
-      if (doctorError) throw doctorError
+      // Tentar inserir ou atualizar (upsert)
+      const { error: contactError } = await supabase
+        .from('doctor_contact_info')
+        .upsert(contactData, { onConflict: 'doctor_id' })
+
+      if (contactError) throw contactError
 
       // Atualizar ou criar perfil do doutor
       const profileData = {
@@ -2627,7 +2650,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Venda de Doutor com Link Hotmart */}
+        {/* Modal: Venda de Doutor com Link Keoto */}
         <Dialog open={showDoctorSell} onOpenChange={setShowDoctorSell}>
           <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20">
             <DialogHeader>
