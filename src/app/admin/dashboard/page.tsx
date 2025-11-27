@@ -152,6 +152,7 @@ export default function AdminDashboard() {
     video_url: '',
     thumbnail_url: '',
     duration: 0,
+    category: 'Geral',
     uploadType: 'url' as 'url' | 'file' | 'ai-voice' | 'ai-video'
   });
 
@@ -738,7 +739,8 @@ export default function AdminDashboard() {
           description: videoFormData.description,
           video_url: videoFormData.video_url,
           thumbnail_url: videoFormData.thumbnail_url || '',
-          duration: videoFormData.duration || 0
+          duration: videoFormData.duration || 0,
+          category: videoFormData.category || 'Geral'
         }]);
 
       if (error) throw error;
@@ -905,6 +907,7 @@ export default function AdminDashboard() {
       video_url: '',
       thumbnail_url: '',
       duration: 0,
+      category: 'Geral',
       uploadType: 'url'
     });
     setAiVoiceText('');

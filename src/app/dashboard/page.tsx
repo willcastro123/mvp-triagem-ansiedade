@@ -448,7 +448,7 @@ export default function DashboardPage() {
             name
           )
         `)
-        .eq('doctor_user_id', doctorUserId)
+        .eq('doctor_id', doctorUserId)
         .order('appointment_date', { ascending: true })
 
       if (!error && data) {
@@ -786,7 +786,7 @@ export default function DashboardPage() {
       const { error } = await supabase
         .from('appointments')
         .insert([{
-          doctor_user_id: user?.id,
+          doctor_id: user?.id,
           patient_id: appointmentForm.patientId,
           appointment_date: appointmentForm.date,
           appointment_time: appointmentForm.time,

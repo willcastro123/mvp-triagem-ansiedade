@@ -366,6 +366,35 @@ export default function MeditationPage() {
     return category?.icon || '✨'
   }
 
+  // Função para converter URL do YouTube em formato embed
+  const getEmbedUrl = (url: string) => {
+    // Se já for um URL embed, retorna como está
+    if (url.includes('embed')) {
+      return url
+    }
+    
+    // Converter URL do YouTube para embed
+    if (url.includes('youtube.com/watch')) {
+      const videoId = url.split('v=')[1]?.split('&')[0]
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    
+    // Converter URL curta do YouTube para embed
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0]
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    
+    // Se for URL do Vimeo
+    if (url.includes('vimeo.com')) {
+      const videoId = url.split('vimeo.com/')[1]?.split('?')[0]
+      return `https://player.vimeo.com/video/${videoId}`
+    }
+    
+    // Se for arquivo de vídeo direto (mp4, etc), retorna como está
+    return url
+  }
+
   if (!user) return null
 
   return (
@@ -526,12 +555,24 @@ export default function MeditationPage() {
                 <Card>
                   <CardContent className="p-0">
                     <div className="aspect-video bg-black">
-                      <video
-                        src={selectedVideo.video_url}
-                        controls
-                        className="w-full h-full"
-                        title={selectedVideo.title}
-                      />
+                      {selectedVideo.video_url.match(/\.(mp4|webm|ogg)$/i) ? (
+                        // Se for arquivo de vídeo direto
+                        <video
+                          src={selectedVideo.video_url}
+                          controls
+                          className="w-full h-full"
+                          title={selectedVideo.title}
+                        />
+                      ) : (
+                        // Se for URL do YouTube, Vimeo, etc
+                        <iframe
+                          src={getEmbedUrl(selectedVideo.video_url)}
+                          className="w-full h-full"
+                          title={selectedVideo.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      )}
                     </div>
                     <div className="p-6">
                       <div className="flex items-center gap-2 mb-3">
@@ -720,10 +761,10 @@ export default function MeditationPage() {
                   id="video_url"
                   value={uploadForm.video_url}
                   onChange={(e) => setUploadForm({ ...uploadForm, video_url: e.target.value })}
-                  placeholder="https://www.youtube.com/embed/..."
+                  placeholder="https://www.youtube.com/watch?v=..."
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Use o link de incorporação (embed) do vídeo
+                  Cole a URL do YouTube, Vimeo ou outro serviço
                 </p>
               </div>
             ) : (

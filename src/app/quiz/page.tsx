@@ -194,8 +194,8 @@ export default function QuizPage() {
     setShowResult(true)
   }
 
-  const handleHotmartCheckout = () => {
-    window.open('https://pay.hotmart.com/P103056552X?sck=HOTMART_PRODUCT_PAGE&off=xfu3cyhr&hotfeature=32&_gl=1*1m9tg0l*_ga*MTE0NzcyODYwNS4xNzYzNzE3MDM5*_ga_GQH2V1F11Q*czE3NjM3MTcwMzckbzEkZzEkdDE3NjM3MjA1MzQkajYwJGwwJGgw*_gcl_au*MTI0NDM4ODg1MC4xNzYzNzE3MDM5LjE1Mzg3OTcyMDMuMTc2MzcxNzA4MS4xNzYzNzIwMzY1*FPAU*MTI0NDM4ODg1MC4xNzYzNzE3MDM5&bid=1763720540240', '_blank')
+  const handleKeotoCheckout = () => {
+    window.open('https://checkout.keoto.com/9e473550-9f49-441e-984c-4a5a6ea05a1a', '_blank')
   }
 
   const getAnxietyTypeInfo = (type: AnxietyType) => {
@@ -429,7 +429,7 @@ export default function QuizPage() {
               </div>
 
               <Button 
-                onClick={handleHotmartCheckout}
+                onClick={handleKeotoCheckout}
                 className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-lg py-6"
               >
                 <ArrowRight className="w-5 h-5 mr-2" />
