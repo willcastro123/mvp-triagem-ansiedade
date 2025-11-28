@@ -182,11 +182,12 @@ export default function QuizPage() {
     setShowResult(true)
   }
 
-const handleHotmartCheckout = () => {
-    // Link de checkout da Hotmart fornecido
-    const HOTMART_URL = 'https://pay.hotmart.com/P103056552X?bid=1764317135512';
-    window.open(HOTMART_URL, '_blank');
-  }
+  // --- MUDANÇA AQUI: Função para Keoto ---
+  const handleKeotoCheckout = () => {
+    // Link de checkout da Keoto atualizado
+    const KEOTO_URL = 'https://checkout.keoto.com/9e473550-9f49-441e-984c-4a5a6ea05a1a';
+    window.open(KEOTO_URL, '_blank');
+  }
 
   const getAnxietyTypeInfo = (type: AnxietyType) => {
     switch (type) {
@@ -418,14 +419,14 @@ const handleHotmartCheckout = () => {
                 </div>
               </div>
 
-// Linha ~424 (Dentro da função renderResult)
-              <Button 
-                onClick={handleHotmartCheckout} // <--- ALTERADO DE handleKeotoCheckout PARA handleHotmartCheckout
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-lg py-6"
-              >
-                <ArrowRight className="w-5 h-5 mr-2" />
-                Começar Tratamento Agora
-              </Button>
+              {/* --- MUDANÇA AQUI: Botão chama handleKeotoCheckout --- */}
+              <Button 
+                onClick={handleKeotoCheckout}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-lg py-6"
+              >
+                <ArrowRight className="w-5 h-5 mr-2" />
+                Começar Tratamento Agora
+              </Button>
 
               <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
                 <Shield className="w-4 h-4" />
