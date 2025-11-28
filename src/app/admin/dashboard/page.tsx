@@ -437,7 +437,7 @@ const handleCreateUser = async () => {
       // setIsLoading(true); 
 
       // Chamada para a nossa API Route (Backend)
-      const response = await fetch('/api/admin/create-user', {
+      const response = await fetch('/api/create-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
