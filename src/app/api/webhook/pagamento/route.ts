@@ -30,42 +30,41 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function POST(req: Request) {
-  console.log('\n--- 🚀 INICIANDO DEBUG DO WEBHOOK ---');
+  console.log('\n--- 🚀 INICIANDO WEBHOOK (HOTMART) ---');
   
   try {
-// PASSO 1: Recebimento dos dados
+    // PASSO 1: Recebimento dos dados
     const body = await req.json();
     console.log('1️⃣ JSON Recebido:', JSON.stringify(body, null, 2));
 
-    // --- MUDANÇA PARA HOTMART ---
+    // Extração de dados da Hotmart
     const purchaseStatus = body.status; 
     const realEmail = body.email || body.buyer?.email || body.data?.buyer?.email;
     const nome = body.name || body.buyer_name || 'Cliente';
-    // ----------------------------
 
-    // PASSO 2: Validações básicas (Usando a lógica da Hotmart)
+    // PASSO 2: Validações básicas
     if (!realEmail) {
-      console.log('❌ FALHA NO PASSO 2: Email do comprador não encontrado no JSON.');
+      console.log('❌ FALHA NO PASSO 2: Email do comprador não encontrado.');
       return NextResponse.json({ error: 'Sem email do comprador' }, { status: 400 });
     }
 
-    // Hotmart usa APROVADA, COMPLETA ou um status similar
+    // Hotmart usa APROVADA, COMPLETA, etc.
     const successStatuses = ['APPROVED', 'COMPLETED', 'APROVADA', 'COMPLETA'];
     
     if (!purchaseStatus || !successStatuses.includes(purchaseStatus.toUpperCase())) {
-      console.log(`❌ FALHA NO PASSO 2: Status inválido. Recebido: ${purchaseStatus}`);
+      console.log(`❌ FALHA NO PASSO 2: Status inválido (${purchaseStatus})`);
       return NextResponse.json({ message: 'Pagamento não aprovado (Ignorado)' });
     }
     console.log(`2️⃣ Validação OK. Email: ${realEmail} | Status: ${purchaseStatus}`);
 
-    // PASSO 3: Gerar credenciais
+    // PASSO 3: Gerar credenciais temporárias
     const randomId = crypto.randomBytes(4).toString('hex');
     const tempEmail = `acesso_${randomId}@portal.interno`;
     const tempPassword = crypto.randomBytes(6).toString('hex');
     console.log(`3️⃣ Credenciais Geradas: ${tempEmail}`);
 
-    // PASSO 4: Criar Usuário no Supabase (Auth)
-    console.log('4️⃣ Tentando criar usuário no Supabase Auth...');
+    // PASSO 4: Criar Usuário no Supabase Auth (Login)
+    console.log('4️⃣ Criando usuário no Auth...');
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: tempEmail,
       password: tempPassword,
@@ -74,67 +73,64 @@ export async function POST(req: Request) {
     });
 
     if (createError) {
-      console.error('❌ ERRO CRÍTICO NO PASSO 4 (Supabase Auth):', createError.message);
+      console.error('❌ ERRO NO PASSO 4 (Auth):', createError.message);
       return NextResponse.json({ error: 'Erro Auth: ' + createError.message }, { status: 400 });
     }
-    console.log('✅ Usuário Auth criado com ID:', authData.user?.id);
+    console.log('✅ Usuário Auth criado ID:', authData.user?.id);
 
-   // ... após o PASSO 4 (Criação de Usuário) ...
-
-// PASSO 5: Salvar no Banco de Dados (Tabela user_profiles)
-console.log('5️⃣ Tentando salvar vínculo na tabela user_profiles...');
-
-// Inserimos o email temporário na coluna 'email' (que é o campo de login)
-// E o email original na nova coluna 'email_compra_original'.
-const { error: profileError } = await supabaseAdmin
-  .from('user_profiles')
-  .insert({
-    id: authData.user?.id,
-    name: nome,
-    email: tempEmail, // O email temporário é usado como campo de login 'email'
-    email_compra_original: realEmail, // ✅ CAMPO PERMANENTE SOLICITADO
-    // Note que não precisamos do campo 'password' aqui, pois ele é gerenciado pela Auth.
-  })
-  .select('*')
-  .maybeSingle();
-
-if (profileError) {
-  console.error('⚠️ ERRO NO PASSO 5 (Tabela Profile - VERIFIQUE AS COLUNAS!):', profileError.message);
-} else {
-  console.log('✅ Tabela user_profiles atualizada com sucesso. Vínculo permanente criado.');
-}
-
-// ... (O código continua com o Passo 6: Enviar Email) ...
-
-    // PASSO 6: Enviar Email via SMTP
-    console.log('6️⃣ Tentando conectar ao SMTP para enviar email...');
-    try {
-      // Tenta enviar
-      await transporter.sendMail({
-        from: process.env.SMTP_USER,
-        to: realEmail, // Envia para o email real
-        subject: 'Teste de Acesso - Debug',
-        html: `
-          <h1>Acesso Liberado</h1>
-          <p>Seu pagamento foi aprovado.</p>
-          <p><strong>Login:</strong> ${tempEmail}</p>
-          <p><strong>Senha:</strong> ${tempPassword}</p>
-          <p>Acesse o perfil e troque seu email.</p>
-        `
+    // PASSO 5: Salvar no Banco de Dados (user_profiles)
+    console.log('5️⃣ Salvando vínculo em user_profiles...');
+    const { error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .insert({
+        id: authData.user?.id,
+        name: nome,
+        email: tempEmail, // Email de login
+        email_compra_original: realEmail, // Email original da Hotmart
       });
-      console.log('✅ SUCESSO! Email enviado para:', realEmail);
-    } catch (emailError: any) {
-      console.error('❌ ERRO NO PASSO 6 (SMTP):', emailError.message);
-      return NextResponse.json({ error: 'Erro SMTP: ' + emailError.message }, { status: 500 });
+
+    if (profileError) {
+      console.error('⚠️ ERRO NO PASSO 5 (Tabela Profile):', profileError.message);
+    } else {
+      console.log('✅ Tabela user_profiles atualizada com sucesso.');
     }
 
-    console.log('--- 🏁 FIM DO PROCESSO COM SUCESSO ---\n');
-    return NextResponse.json({ success: true, message: 'Processo concluído!' });
+    // PASSO 6: Enviar Email via SMTP
+    console.log('6️⃣ Enviando email...');
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_USER,
+        to: realEmail, // Envia para o email real do cliente
+        subject: 'Acesso Liberado - ZentiaMind',
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
+            <h2 style="color: #8b5cf6;">Pagamento Confirmado!</h2>
+            <p>Olá, ${nome}. Sua conta foi criada com sucesso.</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8b5cf6;">
+              <p style="margin: 5px 0;"><strong>📧 Login:</strong> ${tempEmail}</p>
+              <p style="margin: 5px 0;"><strong>🔑 Senha:</strong> ${tempPassword}</p>
+            </div>
+
+            <p>Acesse a plataforma e troque seu e-mail no perfil.</p>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="https://zentiamind.com.br/login" style="background: #8b5cf6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Acessar Agora</a>
+            </div>
+          </div>
+        `,
+      });
+      console.log('✅ Email enviado para:', realEmail);
+    } catch (emailError: any) {
+      console.error('❌ ERRO NO PASSO 6 (SMTP):', emailError.message);
+      // Não retornamos erro 500 aqui para não fazer a Hotmart reenviar o webhook, já que o usuário foi criado.
+    }
+
+    console.log('--- 🏁 FIM DO PROCESSO ---\n');
+    return NextResponse.json({ success: true });
 
   } catch (error: any) {
-    console.error('❌ ERRO GERAL NÃO TRATADO:', error);
+    console.error('❌ ERRO GERAL:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
-
