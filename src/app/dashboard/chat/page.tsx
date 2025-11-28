@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react' // 1. Adicionei useRef aqui
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, MessageSquare, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,9 @@ import { toast } from 'sonner'
 
 export default function ChatPage() {
   const router = useRouter()
+  // 2. Criamos uma referência para o final da lista
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
   const [messages, setMessages] = useState<any[]>([
     {
       id: 1,
@@ -19,6 +22,11 @@ export default function ChatPage() {
     }
   ])
   const [inputMessage, setInputMessage] = useState('')
+
+  // 3. Este efeito roda toda vez que 'messages' mudar (nova mensagem chega ou é enviada)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +48,6 @@ export default function ChatPage() {
 
     try {
       // 2. Prepara o histórico para a IA entender o contexto
-      // A IA precisa saber quem é 'user' e quem é 'assistant' (bot)
       const apiMessages = newMessages.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
@@ -120,6 +127,8 @@ export default function ChatPage() {
                 </div>
               </div>
             ))}
+            {/* 4. Div invisível que serve como âncora para o scroll */}
+            <div ref={messagesEndRef} />
           </CardContent>
         </Card>
 
