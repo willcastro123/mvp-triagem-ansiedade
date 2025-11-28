@@ -97,90 +97,88 @@ export default function LoginPage() {
     }
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!email || !password) {
-      toast.error('Preencha todos os campos')
+  // ----------------- NOVA FUNÇÃO handleLogin -----------------
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault()
+  
+  if (!email || !password) {
+    toast.error('Preencha todos os campos')
+    return
+  }
+
+  setIsLoading(true)
+
+  try {
+    console.log('🔐 Tentando fazer login com:', email)
+
+    // PASSO 1: Fazer o LOGIN com a função de Autenticação do Supabase (Correto!)
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (authError) {
+      // Isso pega erros como 'Invalid login credentials' ou 'Email not confirmed'
+      console.error('❌ Erro de Autenticação:', authError.message)
+      toast.error('Credenciais inválidas ou conta não ativa.', {
+        description: authError.message.includes('Email not confirmed') 
+          ? 'Sua conta não está confirmada.' 
+          : 'E-mail ou senha incorretos.',
+      })
+      setIsLoading(false)
       return
     }
 
-    setIsLoading(true)
+    // O login funcionou. Agora buscamos o registro na tabela de perfis.
+    const userUID = authData.user?.id
+    if (!userUID) throw new Error('UID do usuário não encontrado após login.')
 
-    try {
-      console.log('🔐 Tentando fazer login com:', email)
+    // PASSO 2: Buscar dados do perfil na sua tabela pública (user_profiles)
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles') 
+      .select('*')
+      .eq('id', userUID) // Busca pelo ID retornado pelo login
+      .maybeSingle()
 
-      // Busca usuário no banco
-      const { data: user, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('email', email)
-        .eq('password', password)
-        .maybeSingle()
-
-      console.log('📊 Resultado da busca:', { 
-        encontrou: !!user, 
-        erro: error?.message,
-        detalhes: error 
+    if (profileError || !userProfile) {
+      console.error('⚠️ Perfil não encontrado após login bem-sucedido. UID:', userUID)
+      toast.error('Erro de perfil', {
+        description: 'Perfil do usuário não encontrado no banco de dados.'
       })
-
-      if (error) {
-        console.error('❌ Erro ao buscar usuário:', error)
-        toast.error('Erro ao conectar com o banco de dados', {
-          description: error.message || 'Tente novamente mais tarde.'
-        })
-        setIsLoading(false)
-        return
-      }
-
-      if (!user) {
-        console.warn('⚠️ Usuário não encontrado ou senha incorreta')
-        toast.error('Credenciais inválidas', {
-          description: 'E-mail ou senha incorretos.'
-        })
-        setIsLoading(false)
-        return
-      }
-
-      console.log('✅ Login bem-sucedido! Usuário:', user.email)
-
-      // Registra atividade de login (não crítico)
-      try {
-        await supabase
-          .from('user_activity_logs')
-          .insert([{
-            user_id: user.id,
-            activity_type: 'login',
-            activity_description: 'Usuário fez login no sistema',
-            metadata: { timestamp: new Date().toISOString() }
-          }])
-      } catch (logError) {
-        console.warn('⚠️ Erro ao registrar atividade (não crítico):', logError)
-      }
-
-      // Salva usuário no localStorage
-      localStorage.setItem('user', JSON.stringify(user))
-      console.log('💾 Usuário salvo no localStorage')
-
-      toast.success('Login realizado com sucesso!', {
-        description: `Bem-vindo, ${user.name}!`
-      })
-      
-      // Aguarda um pouco antes de redirecionar
-      console.log('🔄 Redirecionando para dashboard...')
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 500)
-
-    } catch (error) {
-      console.error('❌ Erro inesperado ao fazer login:', error)
-      toast.error('Erro ao fazer login', {
-        description: 'Ocorreu um erro inesperado. Tente novamente.'
-      })
-    } finally {
+      // Opcional: Deslogar o usuário aqui se o perfil for obrigatório
+      await supabase.auth.signOut() 
       setIsLoading(false)
+      return
     }
+
+    console.log('✅ Login bem-sucedido! Usuário:', userProfile.email)
+
+    // ... (Restante do código: Salvar no localStorage, logs, redirecionar) ...
+
+    // Salva usuário no localStorage (agora com os dados do perfil)
+    localStorage.setItem('user', JSON.stringify(userProfile))
+    console.log('💾 Usuário salvo no localStorage')
+
+    toast.success('Login realizado com sucesso!', {
+      description: `Bem-vindo, ${userProfile.name}!`
+    })
+    
+    // Aguarda um pouco antes de redirecionar
+    console.log('🔄 Redirecionando para dashboard...')
+    setTimeout(() => {
+      router.push('/dashboard')
+    }, 500)
+
+  } catch (error) {
+    console.error('❌ Erro inesperado ao fazer login:', error)
+    toast.error('Erro ao fazer login', {
+      description: 'Ocorreu um erro inesperado. Tente novamente.'
+    })
+  } finally {
+    setIsLoading(false)
   }
+}
+// -----------------------------------------------------------------
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center p-4">
