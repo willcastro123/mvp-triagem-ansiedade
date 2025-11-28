@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard, Download, FileText, Send, Users, Key, Copy, Check, Clock, Video, MapPin, Phone, Mail, Building, Moon, ChevronDown, ChevronUp, ChevronLeft, Upload, Image as ImageIcon } from 'lucide-react'
+import { Heart, LogOut, Shield, User, Activity, TrendingUp, Calendar, MessageSquare, Pill, Target, Brain, Settings, Menu, X, Home, BarChart3, Sparkles, Music, DollarSign, CreditCard, Download, FileText, Send, Users, Key, Copy, Check, Clock, Video, MapPin, Phone, Mail, Building, Moon, ChevronDown, ChevronUp, ChevronLeft, Upload, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -862,6 +862,65 @@ export default function DashboardPage() {
     }
   }
 
+  // --- FUNÇÃO PARA REMOVER FOTO ---
+  const handleDeletePhoto = async () => {
+    try {
+      // Se o perfil já existe no banco, atualizamos a url para null
+      if (doctorProfile?.id) {
+        const { error } = await supabase
+          .from('doctor_profiles')
+          .update({ photo_url: null })
+          .eq('id', doctorProfile.id)
+
+        if (error) throw error
+      }
+
+      // Limpa o estado local
+      setPhotoPreview('')
+      if (doctorProfile) {
+        setDoctorProfile({ ...doctorProfile, photo_url: undefined })
+      }
+      toast.success('Foto removida com sucesso!')
+    } catch (error) {
+      console.error('Erro ao remover foto:', error)
+      toast.error('Erro ao remover foto')
+    }
+  }
+
+  // --- FUNÇÃO PARA LIMPAR/EXCLUIR DADOS ---
+  const handleClearData = async () => {
+    if (!confirm("Tem certeza que deseja limpar seus dados públicos? Isso removerá suas informações da vitrine.")) return
+
+    try {
+      if (doctorInfo?.id) {
+        // Limpa informações de contato no banco
+        await supabase
+          .from('doctor_contact_info')
+          .update({ name: null, city: null, address: null, phone: null })
+          .eq('doctor_id', doctorInfo.id)
+        
+        // Limpa bio e desativa exibição no banco
+        if (doctorProfile?.id) {
+          await supabase
+            .from('doctor_profiles')
+            .update({ bio: null, show_on_landing: false })
+            .eq('id', doctorProfile.id)
+        }
+      }
+
+      // Limpa estados locais
+      setDoctorInfo(prev => prev ? ({ ...prev, name: '', city: '', address: '', phone: '' }) : null)
+      setDoctorProfile(prev => prev ? ({ ...prev, bio: '', show_on_landing: false }) : null)
+      setPhotoPreview('') // Limpa a foto visualmente também se for limpar tudo
+      
+      toast.success('Dados limpos com sucesso!')
+      setShowDoctorInfoModal(false)
+    } catch (error) {
+      console.error('Erro ao limpar dados:', error)
+      toast.error('Erro ao limpar dados')
+    }
+  }
+  
   const handleSaveDoctorInfo = async () => {
     if (!doctorInfo || !doctorProfile) return
 
@@ -2505,24 +2564,25 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Dados do Doutor COM UPLOAD DE FOTO */}
+{/* Modal: Dados do Doutor COM EXCLUSÃO */}
         <Dialog open={showDoctorInfoModal} onOpenChange={setShowDoctorInfoModal}>
-          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20 max-w-2xl">
+          <DialogContent className="bg-white dark:bg-slate-800 border-purple-500/20 max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
                 <User className="w-5 h-5 text-purple-600" />
                 Dados do Doutor
               </DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-gray-400">
-                Informações de contato e foto exibidas para os pacientes e na landing page
+                Gerencie suas informações públicas. Use os botões de lixeira para remover dados.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               {/* Upload de Foto */}
-              <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 rounded-lg">
+              <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 rounded-lg relative">
                 <Label className="text-gray-700 dark:text-gray-300 font-semibold">Foto de Perfil</Label>
+                
                 {photoPreview ? (
-                  <div className="relative">
+                  <div className="relative group">
                     <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-purple-200 dark:border-purple-800">
                       <img 
                         src={photoPreview} 
@@ -2530,13 +2590,16 @@ export default function DashboardPage() {
                         className="w-full h-full object-cover"
                       />
                     </div>
+                    {/* Botão de Excluir Foto */}
                     <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPhotoPreview('')}
-                      className="absolute -top-2 -right-2 rounded-full w-8 h-8 p-0"
+                      size="icon"
+                      variant="destructive"
+                      type="button"
+                      onClick={handleDeletePhoto}
+                      className="absolute -bottom-2 -right-2 rounded-full w-9 h-9 shadow-md hover:bg-red-600"
+                      title="Remover foto"
                     >
-                      <X className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 ) : (
@@ -2544,9 +2607,10 @@ export default function DashboardPage() {
                     <ImageIcon className="w-12 h-12 text-gray-400" />
                   </div>
                 )}
-                <div className="flex gap-2">
+
+                <div className="flex gap-2 mt-2">
                   <Label htmlFor="photo_upload" className="cursor-pointer">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors shadow-sm">
                       <Upload className="w-4 h-4" />
                       {photoPreview ? 'Trocar Foto' : 'Adicionar Foto'}
                     </div>
@@ -2565,87 +2629,106 @@ export default function DashboardPage() {
               </div>
 
               {/* Campos de informação */}
-              <div>
-                <Label htmlFor="doctor_name" className="text-gray-700 dark:text-gray-300">Nome Completo</Label>
-                <Input
-                  id="doctor_name"
-                  value={doctorInfo?.name || ''}
-                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, name: e.target.value })}
-                  placeholder="Dr. João Silva"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="doctor_city" className="text-gray-700 dark:text-gray-300">Cidade</Label>
-                <Input
-                  id="doctor_city"
-                  value={doctorInfo?.city || ''}
-                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, city: e.target.value })}
-                  placeholder="São Paulo - SP"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="doctor_address" className="text-gray-700 dark:text-gray-300">Endereço</Label>
-                <Input
-                  id="doctor_address"
-                  value={doctorInfo?.address || ''}
-                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, address: e.target.value })}
-                  placeholder="Rua Exemplo, 123 - Centro"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="doctor_phone" className="text-gray-700 dark:text-gray-300">Telefone para Contato</Label>
-                <Input
-                  id="doctor_phone"
-                  value={doctorInfo?.phone || ''}
-                  onChange={(e) => setDoctorInfo({ ...doctorInfo!, phone: e.target.value })}
-                  placeholder="(11) 98765-4321"
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="doctor_bio" className="text-gray-700 dark:text-gray-300">Biografia (opcional)</Label>
-                <Textarea
-                  id="doctor_bio"
-                  value={doctorProfile?.bio || ''}
-                  onChange={(e) => setDoctorProfile({ ...doctorProfile!, bio: e.target.value })}
-                  placeholder="Conte um pouco sobre sua experiência e especialização..."
-                  className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
-                  rows={4}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="show_on_landing"
-                  checked={doctorProfile?.show_on_landing ?? true}
-                  onChange={(e) => setDoctorProfile({ ...doctorProfile!, show_on_landing: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="show_on_landing" className="text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Exibir meu perfil na página de divulgação de médicos especialistas
-                </Label>
+              <div className="grid gap-4">
+                <div>
+                  <Label htmlFor="doctor_name" className="text-gray-700 dark:text-gray-300">Nome Completo</Label>
+                  <Input
+                    id="doctor_name"
+                    value={doctorInfo?.name || ''}
+                    onChange={(e) => setDoctorInfo({ ...doctorInfo!, name: e.target.value })}
+                    placeholder="Dr. João Silva"
+                    className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700"
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="doctor_city" className="text-gray-700 dark:text-gray-300">Cidade</Label>
+                    <Input
+                      id="doctor_city"
+                      value={doctorInfo?.city || ''}
+                      onChange={(e) => setDoctorInfo({ ...doctorInfo!, city: e.target.value })}
+                      placeholder="São Paulo - SP"
+                      className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="doctor_phone" className="text-gray-700 dark:text-gray-300">Telefone</Label>
+                    <Input
+                      id="doctor_phone"
+                      value={doctorInfo?.phone || ''}
+                      onChange={(e) => setDoctorInfo({ ...doctorInfo!, phone: e.target.value })}
+                      placeholder="(11) 98765-4321"
+                      className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="doctor_address" className="text-gray-700 dark:text-gray-300">Endereço</Label>
+                  <Input
+                    id="doctor_address"
+                    value={doctorInfo?.address || ''}
+                    onChange={(e) => setDoctorInfo({ ...doctorInfo!, address: e.target.value })}
+                    placeholder="Rua Exemplo, 123"
+                    className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doctor_bio" className="text-gray-700 dark:text-gray-300">Biografia</Label>
+                  <Textarea
+                    id="doctor_bio"
+                    value={doctorProfile?.bio || ''}
+                    onChange={(e) => setDoctorProfile({ ...doctorProfile!, bio: e.target.value })}
+                    placeholder="Conte sobre sua experiência..."
+                    className="bg-white dark:bg-slate-900 border-gray-300 dark:border-gray-700"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-800">
+                  <input
+                    type="checkbox"
+                    id="show_on_landing"
+                    checked={doctorProfile?.show_on_landing ?? true}
+                    onChange={(e) => setDoctorProfile({ ...doctorProfile!, show_on_landing: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <Label htmlFor="show_on_landing" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    Exibir meu perfil na vitrine de especialistas da página inicial
+                  </Label>
+                </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDoctorInfoModal(false)}>
-                Cancelar
+
+            <DialogFooter className="flex-col sm:flex-row gap-2 mt-4 border-t pt-4">
+              {/* Botão de Limpar Tudo */}
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={handleClearData}
+                className="text-red-500 hover:text-red-700 hover:bg-red-50 sm:mr-auto"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Limpar Todos os Dados
               </Button>
-              <Button onClick={handleSaveDoctorInfo} className="bg-purple-600 hover:bg-purple-700 gap-2" disabled={isUploadingPhoto}>
-                {isUploadingPhoto ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  <>
-                    <User className="w-4 h-4" />
-                    Salvar Dados
-                  </>
-                )}
-              </Button>
+
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={() => setShowDoctorInfoModal(false)} className="flex-1 sm:flex-none">
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveDoctorInfo} className="bg-purple-600 hover:bg-purple-700 gap-2 flex-1 sm:flex-none" disabled={isUploadingPhoto}>
+                  {isUploadingPhoto ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-4 h-4" />
+                      Salvar Dados
+                    </>
+                  )}
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
