@@ -1,5 +1,8 @@
 "use client"
-
+import { 
+  // ... seus outros ícones
+  Send // <--- ADICIONE ISSO
+} from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Calendar, Clock, Plus, Edit2, Trash2, Check, X, Search, Filter, ChevronLeft, ChevronRight, User, Phone, Mail, FileText, Heart, LogOut, Menu } from 'lucide-react'
@@ -266,6 +269,34 @@ export default function SchedulingPage() {
     }
   }
 
+const handleManualReminder = async (appointmentId: string, patientName: string) => {
+    // Feedback imediato para o usuário
+    toast.loading(`Enviando lembrete para ${patientName}...`, { id: 'sending-email' })
+
+    try {
+      const response = await fetch('/api/send-single-reminder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ appointmentId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data.error || 'Erro ao enviar')
+
+      toast.success('Email de lembrete enviado com sucesso!', { id: 'sending-email' })
+      
+      // Opcional: Recarregar a lista para atualizar algum status se necessário
+      // if (doctorId) loadAppointments(doctorId)
+      
+    } catch (error: any) {
+      console.error('Erro:', error)
+      toast.error(`Erro: ${error.message}`, { id: 'sending-email' })
+    }
+  }
+  
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       const { error } = await supabase
@@ -612,6 +643,19 @@ export default function SchedulingPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
+                            {/* --- NOVO BOTÃO: ENVIAR EMAIL --- */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleManualReminder(apt.id, apt.patient_name)}
+                              className="text-purple-600 hover:bg-purple-50 border-purple-200"
+                              title="Enviar lembrete agora"
+                            >
+                              <Send className="w-3 h-3" />
+                            </Button>
+                            {/* -------------------------------- */}
+
+                            {/* Botão de Editar (Já existia) */}
                             <Button
                               size="sm"
                               variant="outline"
@@ -619,6 +663,8 @@ export default function SchedulingPage() {
                             >
                               <Edit2 className="w-3 h-3" />
                             </Button>
+                            
+                            {/* Botão de Excluir (Já existia) */}
                             <Button
                               size="sm"
                               variant="outline"
