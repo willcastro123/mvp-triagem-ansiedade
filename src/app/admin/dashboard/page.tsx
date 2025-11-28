@@ -422,21 +422,22 @@ export default function AdminDashboard() {
     }
   };
 
-const handleCreateUser = async () => {
+// --- Substitua a função handleCreateUser antiga por esta ---
+  const handleCreateUser = async () => {
     try {
-      // Validar campos obrigatórios
+      // 1. Validar campos obrigatórios
       if (!formData.name || !formData.email || !formData.password) {
-        alert('Preencha todos os campos obrigatórios (Nome, Email, Senha)');
+        alert('Preencha todos os campos obrigatórios (Nome, Email e Senha)');
         return;
       }
 
-      // Gerar código de acesso único
+      // 2. Gerar código de acesso visual (para mostrar no alerta)
       const accessCode = generateAccessCode();
 
-      // Feedback visual de carregamento (opcional)
-      // setIsLoading(true); 
+      // Feedback visual
+      // setIsLoading(true); // Se tiver um estado de loading global
 
-      // Chamada para a nossa API Route (Backend)
+      // 3. CHAMAR A API (Isso cria na lista de Auth E na lista do Painel)
       const response = await fetch('/api/create-user', {
         method: 'POST',
         headers: {
@@ -459,10 +460,15 @@ const handleCreateUser = async () => {
         throw new Error(data.error || 'Falha ao criar usuário');
       }
 
-      alert(`Usuário criado com sucesso! Login liberado.\nCódigo de acesso: ${accessCode}`);
+      // 4. Sucesso!
+      alert(`✅ Usuário criado com sucesso!\n\nEle já aparece na lista de Login (Auth) e na lista do Painel.\nCódigo: ${accessCode}`);
+      
       setShowCreateUser(false);
       resetForm();
-      loadData(); // Recarrega a lista para mostrar o novo usuário
+      
+      // 5. Atualiza a lista na tela automaticamente
+      loadData(); 
+
     } catch (error: any) {
       console.error('Erro ao criar usuário:', error);
       alert('Erro: ' + error.message);
