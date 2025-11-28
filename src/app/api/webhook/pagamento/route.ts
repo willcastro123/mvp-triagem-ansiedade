@@ -79,24 +79,32 @@ export async function POST(req: Request) {
     }
     console.log('✅ Usuário Auth criado com ID:', authData.user?.id);
 
-    // PASSO 5: Salvar no Banco de Dados (Tabela Profiles)
-    console.log('5️⃣ Tentando salvar vínculo na tabela Profiles...');
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: authData.user?.id,
-        email_login: tempEmail,
-        email_compra_original: realEmail,
-        full_name: nome
-      });
+   // ... após o PASSO 4 (Criação de Usuário) ...
 
-    if (profileError) {
-      // Se der erro aqui, a gente avisa mas não para o processo, pois o usuário já foi criado
-      console.error('⚠️ AVISO NO PASSO 5 (Tabela Profile):', profileError.message);
-      console.log('   (Dica: Verifique se a tabela "profiles" existe e se tem as colunas certas)');
-    } else {
-      console.log('✅ Tabela Profiles atualizada com sucesso.');
-    }
+// PASSO 5: Salvar no Banco de Dados (Tabela user_profiles)
+console.log('5️⃣ Tentando salvar vínculo na tabela user_profiles...');
+
+// Inserimos o email temporário na coluna 'email' (que é o campo de login)
+// E o email original na nova coluna 'email_compra_original'.
+const { error: profileError } = await supabaseAdmin
+  .from('user_profiles')
+  .insert({
+    id: authData.user?.id,
+    name: nome,
+    email: tempEmail, // O email temporário é usado como campo de login 'email'
+    email_compra_original: realEmail, // ✅ CAMPO PERMANENTE SOLICITADO
+    // Note que não precisamos do campo 'password' aqui, pois ele é gerenciado pela Auth.
+  })
+  .select('*')
+  .maybeSingle();
+
+if (profileError) {
+  console.error('⚠️ ERRO NO PASSO 5 (Tabela Profile - VERIFIQUE AS COLUNAS!):', profileError.message);
+} else {
+  console.log('✅ Tabela user_profiles atualizada com sucesso. Vínculo permanente criado.');
+}
+
+// ... (O código continua com o Passo 6: Enviar Email) ...
 
     // PASSO 6: Enviar Email via SMTP
     console.log('6️⃣ Tentando conectar ao SMTP para enviar email...');
@@ -128,4 +136,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
