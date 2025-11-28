@@ -143,7 +143,7 @@ export default function DashboardPage() {
   
   const [sellData, setSellData] = useState({
     originalPrice: 34.90,
-    discountedPrice: 22,90,
+    discountedPrice: 22.90,
     buyerEmail: '',
     buyerName: ''
   })
