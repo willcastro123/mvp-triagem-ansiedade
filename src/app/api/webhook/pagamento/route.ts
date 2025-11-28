@@ -22,7 +22,7 @@ const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
-  secure: true, // true para porta 465
+  secure: true, // true para porta 465 (ou false para 587 com tls)
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS || process.env.SMTP_PASSWORD,
@@ -30,52 +30,52 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function POST(req: Request) {
-  console.log('\n--- 🚀 INICIANDO WEBHOOK (HOTMART ULTRA BLINDADO) ---');
+  console.log('\n--- 🚀 INICIANDO WEBHOOK (KEOTO) ---');
   
   try {
     // PASSO 1: Recebimento dos dados
     const body = await req.json();
-    console.log('📦 Payload Bruto:', JSON.stringify(body, null, 2));
+    console.log('📦 Payload Bruto Keoto:', JSON.stringify(body, null, 2));
 
-    // --- ESTRATÉGIA "BUSCAR EM TUDO" (ATUALIZADA PARA ASSINATURAS) ---
+    // --- ESTRATÉGIA DE EXTRAÇÃO KEOTO ---
     
-    // 1. Tenta achar o EMAIL (Adicionado 'subscriber' para assinaturas)
+    // 1. Tenta achar o EMAIL (Geralmente vem em customer.email)
     const realEmail = 
+      body.customer?.email || 
       body.email || 
-      body.buyer?.email || 
-      body.data?.buyer?.email || 
-      body.data?.subscriber?.email || // <--- NOVO: Pega email de assinatura
-      body.data?.producer?.email;
+      body.data?.customer?.email;
 
-    // 2. Tenta achar o STATUS
+    // 2. Tenta achar o STATUS (Geralmente status ou payment_status)
     const rawStatus = 
       body.status || 
-      body.event || 
+      body.payment_status || 
       body.data?.status || 
       'UNKNOWN';
 
-    // 3. Tenta achar o NOME (Adicionado 'subscriber' para assinaturas)
+    // 3. Tenta achar o NOME
     const nome = 
+      body.customer?.name || 
+      body.customer?.full_name || 
       body.name || 
-      body.buyer?.name || 
-      body.data?.buyer?.name || 
-      body.data?.subscriber?.name || // <--- NOVO: Pega nome de assinatura
-      'Cliente';
+      'Cliente Keoto';
+
+    const phone = 
+      body.customer?.phone || 
+      body.customer?.mobile || 
+      '';
 
     console.log(`🔎 Dados Extraídos -> Email: ${realEmail} | Status: ${rawStatus} | Nome: ${nome}`);
 
     // PASSO 2: Validações básicas
     if (!realEmail) {
       console.log('❌ FALHA NO PASSO 2: Email do comprador não encontrado.');
-      // Retornamos 200 aqui para a Hotmart parar de tentar enviar se o JSON for inválido
       return NextResponse.json({ message: 'Email não encontrado, ignorado.' });
     }
 
-    // Lista de status aceitos
-    const successKeywords = ['APPROVED', 'COMPLETED', 'CONFIRMED', 'BILLED', 'PURCHASE_APPROVED'];
+    // Lista de status aceitos na Keoto
+    // A Keoto costuma enviar 'paid', 'approved', 'completed'.
+    const successKeywords = ['PAID', 'APPROVED', 'COMPLETED', 'CONFIRMED'];
     
-    // Verificação de segurança: O status atual é SUBSCRIPTION_CANCELLATION
-    // Se for cancelamento, NÃO devemos criar conta.
     const isApproved = successKeywords.some(keyword => 
       String(rawStatus).toUpperCase().includes(keyword)
     );
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     
     console.log(`2️⃣ Validação OK. Compra Aprovada para: ${realEmail}`);
 
-    // PASSO 3: Gerar credenciais temporárias
+    // PASSO 3: Gerar credenciais temporárias (Lógica Mantida)
     const randomId = crypto.randomBytes(4).toString('hex');
     const tempEmail = `acesso_${randomId}@portal.interno`;
     const tempPassword = crypto.randomBytes(6).toString('hex');
@@ -99,28 +99,34 @@ export async function POST(req: Request) {
       email: tempEmail,
       password: tempPassword,
       email_confirm: true,
-      user_metadata: { full_name: nome }
+      user_metadata: { full_name: nome, phone: phone }
     });
 
     if (createError) {
       console.error('❌ ERRO NO PASSO 4 (Auth):', createError.message);
+      // Se der erro aqui (ex: email temp duplicado, o que é raro), paramos.
       return NextResponse.json({ error: 'Erro Auth: ' + createError.message }, { status: 400 });
     }
     console.log('✅ Usuário Auth criado ID:', authData.user?.id);
 
-    // PASSO 5: Salvar no Banco de Dados (user_profiles)
+    // PASSO 5: Salvar no Banco de Dados (user_profiles ou profiles)
     console.log('5️⃣ Salvando vínculo em user_profiles...');
+    
+    // ATENÇÃO: Verifique se o nome da sua tabela é 'user_profiles' ou 'profiles'
     const { error: profileError } = await supabaseAdmin
-      .from('user_profiles')
+      .from('user_profiles') // <--- Confirme se esse é o nome da tabela no seu Supabase
       .insert({
         id: authData.user?.id,
         name: nome,
-        email: tempEmail, // Email de login
-        email_compra_original: realEmail, // Email original da Hotmart
+        email: tempEmail, // Email de login (interno)
+        email_compra_original: realEmail, // Email real do cliente
+        plano: 'premium', // Opcional: marcar qual plano
+        created_at: new Date()
       });
 
     if (profileError) {
       console.error('⚠️ ERRO NO PASSO 5 (Tabela Profile):', profileError.message);
+      // Não interrompemos o fluxo, pois o Auth já foi criado, tentamos enviar o email mesmo assim
     } else {
       console.log('✅ Tabela user_profiles atualizada com sucesso.');
     }
@@ -130,7 +136,7 @@ export async function POST(req: Request) {
     try {
       await transporter.sendMail({
         from: process.env.SMTP_USER,
-        to: realEmail,
+        to: realEmail, // Envia para o email real do cliente
         subject: 'Acesso Liberado - ZentiaMind',
         html: `
           <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
@@ -138,11 +144,11 @@ export async function POST(req: Request) {
             <p>Olá, ${nome}. Sua conta foi criada com sucesso.</p>
             
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8b5cf6;">
-              <p style="margin: 5px 0;"><strong>📧 Login:</strong> ${tempEmail}</p>
-              <p style="margin: 5px 0;"><strong>🔑 Senha:</strong> ${tempPassword}</p>
+              <p style="margin: 5px 0;"><strong>📧 Login Provisório:</strong> ${tempEmail}</p>
+              <p style="margin: 5px 0;"><strong>🔑 Senha Provisória:</strong> ${tempPassword}</p>
             </div>
 
-            <p>Acesse a plataforma e troque seu e-mail no perfil.</p>
+            <p><strong>Importante:</strong> Este é um acesso gerado automaticamente. Ao entrar, recomendamos que vá em "Perfil" e altere seu e-mail para o seu e-mail pessoal.</p>
             
             <div style="text-align: center; margin-top: 30px;">
                 <a href="https://zentiamind.com.br/login" style="background: #8b5cf6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Acessar Agora</a>
