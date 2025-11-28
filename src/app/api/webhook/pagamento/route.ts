@@ -30,17 +30,36 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function POST(req: Request) {
-  console.log('\n--- 🚀 INICIANDO WEBHOOK (HOTMART) ---');
+  console.log('\n--- 🚀 INICIANDO WEBHOOK (HOTMART BLINDADO) ---');
   
   try {
     // PASSO 1: Recebimento dos dados
     const body = await req.json();
-    console.log('1️⃣ JSON Recebido:', JSON.stringify(body, null, 2));
+    console.log('📦 Payload Bruto:', JSON.stringify(body, null, 2)); // Debug Essencial
 
-    // Extração de dados da Hotmart
-    const purchaseStatus = body.status; 
-    const realEmail = body.email || body.buyer?.email || body.data?.buyer?.email;
-    const nome = body.name || body.buyer_name || 'Cliente';
+    // --- ESTRATÉGIA "BUSCAR EM TUDO" (A Correção do Erro) ---
+    // Tenta achar o EMAIL em vários lugares (raiz, buyer, data.buyer, etc)
+    const realEmail = 
+      body.email || 
+      body.buyer?.email || 
+      body.data?.buyer?.email || 
+      body.data?.producer?.email;
+
+    // Tenta achar o STATUS em vários lugares
+    const rawStatus = 
+      body.status || 
+      body.event || 
+      body.data?.status || 
+      'UNKNOWN';
+
+    // Tenta achar o NOME
+    const nome = 
+      body.name || 
+      body.buyer?.name || 
+      body.data?.buyer?.name || 
+      'Cliente';
+
+    console.log(`🔎 Dados Extraídos -> Email: ${realEmail} | Status: ${rawStatus} | Nome: ${nome}`);
 
     // PASSO 2: Validações básicas
     if (!realEmail) {
@@ -48,14 +67,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Sem email do comprador' }, { status: 400 });
     }
 
-    // Hotmart usa APROVADA, COMPLETA, etc.
-    const successStatuses = ['APPROVED', 'COMPLETED', 'APROVADA', 'COMPLETA'];
+    // Lista de status aceitos (Maiúsculo e minúsculo não importam mais)
+    const successKeywords = ['APPROVED', 'COMPLETED', 'CONFIRMED', 'BILLED', 'PURCHASE_APPROVED'];
+    const isApproved = successKeywords.some(keyword => 
+      String(rawStatus).toUpperCase().includes(keyword)
+    );
     
-    if (!purchaseStatus || !successStatuses.includes(purchaseStatus.toUpperCase())) {
-      console.log(`❌ FALHA NO PASSO 2: Status inválido (${purchaseStatus})`);
+    if (!isApproved) {
+      console.log(`❌ FALHA NO PASSO 2: Status não aprovado (${rawStatus}). Ignorando.`);
       return NextResponse.json({ message: 'Pagamento não aprovado (Ignorado)' });
     }
-    console.log(`2️⃣ Validação OK. Email: ${realEmail} | Status: ${purchaseStatus}`);
+    
+    console.log(`2️⃣ Validação OK. Email: ${realEmail} | Status: ${rawStatus}`);
 
     // PASSO 3: Gerar credenciais temporárias
     const randomId = crypto.randomBytes(4).toString('hex');
@@ -123,7 +146,6 @@ export async function POST(req: Request) {
       console.log('✅ Email enviado para:', realEmail);
     } catch (emailError: any) {
       console.error('❌ ERRO NO PASSO 6 (SMTP):', emailError.message);
-      // Não retornamos erro 500 aqui para não fazer a Hotmart reenviar o webhook, já que o usuário foi criado.
     }
 
     console.log('--- 🏁 FIM DO PROCESSO ---\n');
