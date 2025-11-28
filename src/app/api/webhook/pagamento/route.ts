@@ -7,7 +7,6 @@ import crypto from 'crypto';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Log inicial para garantir que as chaves existem
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ ERRO CRÍTICO: Variáveis de ambiente do Supabase faltando!');
 }
@@ -22,7 +21,7 @@ const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
-  secure: true, // true para porta 465 (ou false para 587 com tls)
+  secure: true, 
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS || process.env.SMTP_PASSWORD,
@@ -30,71 +29,64 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function POST(req: Request) {
-  console.log('\n--- 🚀 INICIANDO WEBHOOK (KEOTO) ---');
+  console.log('\n--- 🚀 INICIANDO WEBHOOK (KEOTO FINAL) ---');
   
   try {
-    // PASSO 1: Recebimento dos dados
     const body = await req.json();
-    console.log('📦 Payload Bruto Keoto:', JSON.stringify(body, null, 2));
+    console.log('📦 Payload Recebido'); // Simplifiquei o log para não poluir
 
-    // --- ESTRATÉGIA DE EXTRAÇÃO KEOTO ---
+    // --- ESTRATÉGIA DE EXTRAÇÃO BASEADA NO SEU LOG ---
     
-    // 1. Tenta achar o EMAIL (Geralmente vem em customer.email)
+    // 1. Email
     const realEmail = 
       body.customer?.email || 
       body.email || 
-      body.data?.customer?.email;
+      '';
 
-    // 2. Tenta achar o STATUS (Geralmente status ou payment_status)
+    // 2. Status
     const rawStatus = 
       body.status || 
-      body.payment_status || 
-      body.data?.status || 
+      body.event || 
       'UNKNOWN';
 
-    // 3. Tenta achar o NOME
+    // 3. Nome
     const nome = 
       body.customer?.name || 
-      body.customer?.full_name || 
       body.name || 
       'Cliente Keoto';
 
+    // 4. Telefone (Corrigido conforme seu log: phone_number)
     const phone = 
+      body.customer?.phone_number || 
       body.customer?.phone || 
-      body.customer?.mobile || 
       '';
 
-    console.log(`🔎 Dados Extraídos -> Email: ${realEmail} | Status: ${rawStatus} | Nome: ${nome}`);
+    console.log(`🔎 Dados: ${realEmail} | Status: ${rawStatus} | Nome: ${nome}`);
 
-    // PASSO 2: Validações básicas
     if (!realEmail) {
-      console.log('❌ FALHA NO PASSO 2: Email do comprador não encontrado.');
-      return NextResponse.json({ message: 'Email não encontrado, ignorado.' });
+      return NextResponse.json({ message: 'Email não encontrado.' });
     }
 
-    // Lista de status aceitos na Keoto
-    // A Keoto costuma enviar 'paid', 'approved', 'completed'.
+    // Validação de Status
     const successKeywords = ['PAID', 'APPROVED', 'COMPLETED', 'CONFIRMED'];
-    
     const isApproved = successKeywords.some(keyword => 
       String(rawStatus).toUpperCase().includes(keyword)
     );
     
     if (!isApproved) {
-      console.log(`⚠️ Status não é de aprovação de compra: "${rawStatus}". Ignorando criação de conta.`);
-      return NextResponse.json({ message: 'Status ignorado (não é compra aprovada)' });
+      console.log(`⚠️ Status ignorado: "${rawStatus}"`);
+      return NextResponse.json({ message: 'Status ignorado' });
     }
     
-    console.log(`2️⃣ Validação OK. Compra Aprovada para: ${realEmail}`);
+    console.log(`2️⃣ Compra Aprovada.`);
 
-    // PASSO 3: Gerar credenciais temporárias (Lógica Mantida)
+    // PASSO 3: Gerar credenciais
     const randomId = crypto.randomBytes(4).toString('hex');
     const tempEmail = `acesso_${randomId}@portal.interno`;
     const tempPassword = crypto.randomBytes(6).toString('hex');
-    console.log(`3️⃣ Credenciais Geradas: ${tempEmail}`);
 
-    // PASSO 4: Criar Usuário no Supabase Auth (Login)
-    console.log('4️⃣ Criando usuário no Auth...');
+    // PASSO 4: Criar Usuário no Auth
+    console.log('4️⃣ Criando Auth...');
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: tempEmail,
       password: tempPassword,
@@ -103,40 +95,37 @@ export async function POST(req: Request) {
     });
 
     if (createError) {
-      console.error('❌ ERRO NO PASSO 4 (Auth):', createError.message);
-      // Se der erro aqui (ex: email temp duplicado, o que é raro), paramos.
-      return NextResponse.json({ error: 'Erro Auth: ' + createError.message }, { status: 400 });
+      console.error('❌ ERRO Auth:', createError.message);
+      return NextResponse.json({ error: createError.message }, { status: 400 });
     }
-    console.log('✅ Usuário Auth criado ID:', authData.user?.id);
 
-    // PASSO 5: Salvar no Banco de Dados (user_profiles ou profiles)
-    console.log('5️⃣ Salvando vínculo em user_profiles...');
+    // PASSO 5: Salvar no Banco (CORRIGIDO)
+    // Removi a coluna 'plano' que estava dando erro
+    console.log('5️⃣ Atualizando user_profiles...');
     
-    // ATENÇÃO: Verifique se o nome da sua tabela é 'user_profiles' ou 'profiles'
     const { error: profileError } = await supabaseAdmin
-      .from('user_profiles') // <--- Confirme se esse é o nome da tabela no seu Supabase
+      .from('user_profiles') 
       .insert({
         id: authData.user?.id,
         name: nome,
-        email: tempEmail, // Email de login (interno)
-        email_compra_original: realEmail, // Email real do cliente
-        plano: 'premium', // Opcional: marcar qual plano
+        email: tempEmail, 
+        email_compra_original: realEmail,
+        // plano: 'premium', <--- REMOVIDO POIS A COLUNA NÃO EXISTE
         created_at: new Date()
       });
 
     if (profileError) {
-      console.error('⚠️ ERRO NO PASSO 5 (Tabela Profile):', profileError.message);
-      // Não interrompemos o fluxo, pois o Auth já foi criado, tentamos enviar o email mesmo assim
+      console.error('⚠️ ERRO Profile (Não crítico):', profileError.message);
     } else {
-      console.log('✅ Tabela user_profiles atualizada com sucesso.');
+      console.log('✅ Profile salvo.');
     }
 
-    // PASSO 6: Enviar Email via SMTP
+    // PASSO 6: Enviar Email
     console.log('6️⃣ Enviando email...');
     try {
       await transporter.sendMail({
         from: process.env.SMTP_USER,
-        to: realEmail, // Envia para o email real do cliente
+        to: realEmail,
         subject: 'Acesso Liberado - ZentiaMind',
         html: `
           <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
@@ -156,12 +145,11 @@ export async function POST(req: Request) {
           </div>
         `,
       });
-      console.log('✅ Email enviado para:', realEmail);
+      console.log('✅ Email enviado.');
     } catch (emailError: any) {
-      console.error('❌ ERRO NO PASSO 6 (SMTP):', emailError.message);
+      console.error('❌ ERRO SMTP:', emailError.message);
     }
 
-    console.log('--- 🏁 FIM DO PROCESSO ---\n');
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
