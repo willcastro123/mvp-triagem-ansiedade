@@ -181,7 +181,7 @@ const handleLogin = async (e: React.FormEvent) => {
 }
 // -----------------------------------------------------------------
 
-// ----------------- NOVA FUNÇÃO handleForgotPassword -----------------
+// ----------------- NOVA FUNÇÃO handleForgotPassword (Customizada) -----------------
 const handleForgotPassword = async () => {
   if (!email) {
     toast.error('Informe seu e-mail', {
@@ -193,27 +193,58 @@ const handleForgotPassword = async () => {
   setIsLoading(true)
 
   try {
-    // Supabase envia o link de redefinição para o email cadastrado
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // Importante: Substitua /update-password pela sua URL de redefinição de senha
-      redirectTo: `${window.location.origin}/update-password`, 
-    })
+    // 1. Busca o perfil na tabela pública para obter o ID e o nome (para o email)
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('id, name')
+      .eq('email', email)
+      .maybeSingle()
 
-    if (error) {
-      console.error('Erro ao solicitar reset:', error)
-      toast.error('Erro ao enviar e-mail', { 
-        description: 'Verifique o e-mail digitado ou tente mais tarde.' 
+    if (profileError || !userProfile) {
+      // É importante não confirmar se o e-mail existe por segurança
+      toast.error('E-mail não encontrado.', {
+        description: 'Verifique o e-mail digitado ou se a conta está ativa.'
       })
       return
     }
 
-    toast.success('E-mail de redefinição enviado!', {
+    // 2. Gera código único e link customizado
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
+    
+    // O link customizado (igual ao do seu fluxo de configurações)
+    const resetLink = `${window.location.origin}/reset-password?code=${resetCode}&email=${email}`
+
+    // 3. Salva o código na coluna 'access_code' do perfil
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({ access_code: resetCode })
+      .eq('id', userProfile.id) // Usa o ID para garantir que atualiza o usuário certo
+
+    if (updateError) throw updateError
+
+    // 4. Chama sua API customizada para enviar o email com o link
+    const response = await fetch('/api/send-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        resetLink: resetLink,
+        userName: userProfile.name // Personaliza o email
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Erro ao enviar e-mail pela API')
+    }
+
+    toast.success('Link de redefinição enviado!', {
       description: 'Verifique sua caixa de entrada (e spam) para redefinir sua senha.'
     })
 
-  } catch (error) {
-    console.error('Erro inesperado no reset:', error)
-    toast.error('Ocorreu um erro inesperado.')
+  } catch (error: any) {
+    console.error('Erro no reset customizado:', error)
+    toast.error('Ocorreu um erro inesperado.', { description: error.message })
   } finally {
     setIsLoading(false)
   }
