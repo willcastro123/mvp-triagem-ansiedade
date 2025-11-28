@@ -20,7 +20,7 @@ export default function TesteWebhookPage() {
         },
         body: JSON.stringify({
           status: 'paid',
-          email: 'SEU_EMAIL_AQUI@gmail.com', // <--- COLOQUE SEU EMAIL REAL AQUI PARA RECEBER
+          email: 'willcastrobvo@gmail.com', // <--- COLOQUE SEU EMAIL REAL AQUI PARA RECEBER
           name: 'Teste Comprador Manual',
           amount: 10000
         }),
