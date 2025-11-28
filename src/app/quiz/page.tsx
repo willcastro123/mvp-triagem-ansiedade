@@ -194,9 +194,11 @@ export default function QuizPage() {
     setShowResult(true)
   }
 
-  const handleKeotoCheckout = () => {
-    window.open('https://checkout.keoto.com/9e473550-9f49-441e-984c-4a5a6ea05a1a', '_blank')
-  }
+const handleHotmartCheckout = () => {
+    // Link de checkout da Hotmart fornecido
+    const HOTMART_URL = 'https://pay.hotmart.com/P103056552X?bid=1764317135512';
+    window.open(HOTMART_URL, '_blank');
+  }
 
   const getAnxietyTypeInfo = (type: AnxietyType) => {
     switch (type) {
@@ -428,10 +430,14 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              <Button 
-                onClick={handleKeotoCheckout}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-lg py-6"
-              >
+// Linha ~424 (Dentro da função renderResult)
+              <Button 
+                onClick={handleHotmartCheckout} // <--- ALTERADO DE handleKeotoCheckout PARA handleHotmartCheckout
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-lg py-6"
+              >
+                <ArrowRight className="w-5 h-5 mr-2" />
+                Começar Tratamento Agora
+              </Button>
                 <ArrowRight className="w-5 h-5 mr-2" />
                 Começar Tratamento Agora
               </Button>
