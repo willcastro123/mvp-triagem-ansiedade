@@ -11,9 +11,6 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
-  const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRegisterMode, setIsRegisterMode] = useState(false)
   const [showPassword, setShowPassword] = useState(false) // <--- NOVO STATE
   const router = useRouter()
   const [email, setEmail] = useState('')
