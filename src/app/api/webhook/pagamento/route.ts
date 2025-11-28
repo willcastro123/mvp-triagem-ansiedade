@@ -33,25 +33,30 @@ export async function POST(req: Request) {
   console.log('\n--- 🚀 INICIANDO DEBUG DO WEBHOOK ---');
   
   try {
-    // PASSO 1: Recebimento dos dados
+// PASSO 1: Recebimento dos dados
     const body = await req.json();
     console.log('1️⃣ JSON Recebido:', JSON.stringify(body, null, 2));
 
-    const status = body.status || body.payment_status; 
-    const realEmail = body.email || body.customer?.email || body.payer_email;
-    const nome = body.name || body.customer?.name || 'Cliente';
+    // --- MUDANÇA PARA HOTMART ---
+    const purchaseStatus = body.status; 
+    const realEmail = body.email || body.buyer?.email || body.data?.buyer?.email;
+    const nome = body.name || body.buyer_name || 'Cliente';
+    // ----------------------------
 
-    // PASSO 2: Validações básicas
+    // PASSO 2: Validações básicas (Usando a lógica da Hotmart)
     if (!realEmail) {
-      console.log('❌ FALHA NO PASSO 2: Email não encontrado no JSON recebido.');
-      return NextResponse.json({ error: 'Sem email no JSON' }, { status: 400 });
+      console.log('❌ FALHA NO PASSO 2: Email do comprador não encontrado no JSON.');
+      return NextResponse.json({ error: 'Sem email do comprador' }, { status: 400 });
     }
 
-    if (status !== 'paid' && status !== 'approved' && status !== 'completed') {
-      console.log(`❌ FALHA NO PASSO 2: Status inválido. Recebido: "${status}"`);
+    // Hotmart usa APROVADA, COMPLETA ou um status similar
+    const successStatuses = ['APPROVED', 'COMPLETED', 'APROVADA', 'COMPLETA'];
+    
+    if (!purchaseStatus || !successStatuses.includes(purchaseStatus.toUpperCase())) {
+      console.log(`❌ FALHA NO PASSO 2: Status inválido. Recebido: ${purchaseStatus}`);
       return NextResponse.json({ message: 'Pagamento não aprovado (Ignorado)' });
     }
-    console.log(`2️⃣ Validação OK. Email: ${realEmail} | Status: ${status}`);
+    console.log(`2️⃣ Validação OK. Email: ${realEmail} | Status: ${purchaseStatus}`);
 
     // PASSO 3: Gerar credenciais
     const randomId = crypto.randomBytes(4).toString('hex');
@@ -123,3 +128,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
