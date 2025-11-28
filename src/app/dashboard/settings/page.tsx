@@ -46,19 +46,89 @@ export default function SettingsPage() {
     }
   }, [])
 
-  const handleSaveProfile = async () => {
-    setIsSaving(true)
-    try {
-      // Aqui você pode salvar os dados do usuário no banco
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Dados atualizados com sucesso!')
-    } catch (error) {
-      console.error('Erro ao salvar dados:', error)
-      toast.error('Erro ao salvar dados')
-    } finally {
-      setIsSaving(false)
-    }
+// ----------------- NOVA FUNÇÃO handleSaveProfile -----------------
+const handleSaveProfile = async () => {
+  setIsSaving(true)
+  
+  // 1. Pega o usuário logado para obter o ID (UID)
+  const { data: { user: currentUser }, error: sessionError } = await supabase.auth.getUser()
+  
+  if (sessionError || !currentUser) {
+    toast.error('Erro de sessão', { description: 'Faça login novamente.' })
+    setIsSaving(false)
+    return
   }
+
+  try {
+    const isEmailChanged = userData.email !== userEmail
+    let authUpdateSuccess = true
+    
+    // --- LÓGICA DE TROCA DE E-MAIL ---
+    if (isEmailChanged) {
+      // 2. Chama a função de autenticação do Supabase para alterar o email
+      const { error: authError } = await supabase.auth.updateUser({
+        email: userData.email
+      })
+
+      if (authError) {
+        console.error('Erro ao atualizar AUTH:', authError)
+        toast.error('Erro ao trocar e-mail', { description: authError.message })
+        authUpdateSuccess = false
+        // Se a troca de email falhar, paramos aqui
+        return 
+      }
+      
+      // Se a troca do Auth for bem-sucedida, informamos o usuário
+      toast.info('Link de confirmação enviado para o novo e-mail.', {
+        description: 'Clique no link para finalizar a troca de endereço.'
+      })
+    }
+    // ------------------------------------
+    
+    // 3. Salva os dados do perfil (Nome, Telefone, Endereço) na tabela pública
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .update({
+        name: userData.name,
+        // O email só será atualizado na tabela pública se a troca no Auth for bem-sucedida
+        // Ou se o email não mudou. Se mudou, esperamos a confirmação para atualizar o localStorage.
+        email: userData.email, 
+        phone: userData.phone,
+        city: userData.city,
+        // Adicione outras colunas aqui:
+        // age: userData.birthDate,
+        // etc.
+      })
+      .eq('id', currentUser.id) // Atualiza apenas o registro do usuário logado
+
+    if (profileError) {
+      console.error('Erro ao atualizar perfil:', profileError)
+      toast.error('Erro ao salvar dados pessoais.')
+      return
+    }
+
+    // 4. Se a troca de email foi iniciada, não salvamos no localStorage ainda.
+    if (!isEmailChanged || authUpdateSuccess) {
+      toast.success('Dados pessoais atualizados com sucesso!')
+      
+      // Atualizar o localStorage com os novos dados
+      const updatedUser = { ...JSON.parse(localStorage.getItem('user') || '{}'), ...userData }
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      
+      // Se o email não mudou, atualiza o estado userEmail
+      if (!isEmailChanged) {
+        setUserEmail(userData.email)
+      }
+    }
+
+  } catch (error) {
+    console.error('Erro geral ao salvar:', error)
+    toast.error('Erro inesperado ao salvar os dados.')
+  } finally {
+    setIsSaving(false)
+  }
+}
+// -------------------------------------------------------------
 
   const handleRequestPasswordReset = async () => {
     if (!userEmail) {
