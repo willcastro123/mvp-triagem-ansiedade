@@ -61,18 +61,6 @@ const triageQuestions = [
   { id: 11, text: 'Você tem dificuldade em controlar suas preocupações?', category: 'general', type: 'scale' },
   { id: 12, text: 'Você sente medo de ser julgado por outras pessoas?', category: 'social', type: 'scale' },
   { id: 13, text: 'Você já teve episódios de coração acelerado, suor ou tremores repentinos?', category: 'panic', type: 'scale' },
-  { id: 14, text: 'Você se preocupa excessivamente com várias coisas do dia a dia?', category: 'general', type: 'scale' },
-  { id: 15, text: 'Você tem dificuldade para dormir devido a pensamentos ansiosos?', category: 'general', type: 'scale' },
-  { id: 16, text: 'Você sente tensão muscular ou dores físicas relacionadas à ansiedade?', category: 'general', type: 'scale' },
-  { id: 17, text: 'Você evita falar em público ou participar de reuniões?', category: 'social', type: 'scale' },
-  { id: 18, text: 'Você já sentiu que ia desmaiar ou perder o controle durante um episódio de ansiedade?', category: 'panic', type: 'scale' },
-  { id: 19, text: 'Você tem medo de lugares fechados ou multidões?', category: 'panic', type: 'scale' },
-  { id: 20, text: 'Você se sente constantemente cansado ou esgotado mentalmente?', category: 'general', type: 'scale' },
-  { id: 21, text: 'Você tem dificuldade em se concentrar nas tarefas diárias?', category: 'general', type: 'scale' },
-  { id: 22, text: 'Você evita contato visual ou conversas com desconhecidos?', category: 'social', type: 'scale' },
-  { id: 23, text: 'Você sente que precisa sempre estar em controle de tudo?', category: 'general', type: 'scale' },
-  { id: 24, text: 'Com que frequência você sente sintomas físicos de ansiedade (náusea, tontura, falta de ar)?', category: 'panic', type: 'scale' },
-  { id: 25, text: 'Você tem pensamentos intrusivos ou preocupações que não consegue controlar?', category: 'general', type: 'scale' },
 ]
 
 const testimonials: Testimonial[] = [
