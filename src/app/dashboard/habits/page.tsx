@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Target, Plus, Check, X } from 'lucide-react'
+import { ArrowLeft, Target, Plus, Check, Trash2, Minus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -75,10 +75,57 @@ export default function HabitsPage() {
     }
   }
 
+  // Função para ajuste manual do contador
+  const adjustStreak = async (id: string, currentStreak: number, amount: number, e: React.MouseEvent) => {
+    e.stopPropagation() 
+    
+    const newStreak = Math.max(0, currentStreak + amount)
+
+    try {
+      const { error } = await supabase
+        .from('habits')
+        .update({ streak: newStreak })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setHabits(habits.map(habit => 
+        habit.id === id 
+          ? { ...habit, streak: newStreak }
+          : habit
+      ))
+    } catch (error) {
+      console.error('Erro ao ajustar dias:', error)
+      toast.error('Erro ao atualizar contagem')
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este hábito?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('habits')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setHabits(habits.filter(habit => habit.id !== id))
+      toast.success('Hábito excluído com sucesso!')
+    } catch (error) {
+      console.error('Erro ao excluir hábito:', error)
+      toast.error('Erro ao excluir hábito')
+    }
+  }
+
   const toggleHabit = async (id: string, currentCompleted: boolean, currentStreak: number) => {
     try {
       const newCompleted = !currentCompleted
-      const newStreak = newCompleted ? currentStreak + 1 : currentStreak
+      
+      const newStreak = newCompleted 
+        ? currentStreak + 1 
+        : Math.max(0, currentStreak - 1)
 
       const { error } = await supabase
         .from('habits')
@@ -95,7 +142,13 @@ export default function HabitsPage() {
           ? { ...habit, completed: newCompleted, streak: newStreak }
           : habit
       ))
-      toast.success('Hábito atualizado!')
+      
+      if (newCompleted) {
+        toast.success('Hábito concluído! +1 dia na sequência')
+      } else {
+        toast.info('Hábito desmarcado')
+      }
+      
     } catch (error) {
       console.error('Erro ao atualizar hábito:', error)
       toast.error('Erro ao atualizar hábito')
@@ -188,27 +241,78 @@ export default function HabitsPage() {
         ) : (
           <div className="space-y-4">
             {habits.map((habit) => (
-              <Card key={habit.id} className="hover:shadow-lg transition-shadow">
+              <Card key={habit.id} className="hover:shadow-lg transition-shadow group">
                 <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
-                      <Button
+                  <div className="flex items-center justify-between gap-4">
+                    
+                    {/* Botão de Check Principal */}
+                    <Button
                         size="icon"
                         variant={habit.completed ? "default" : "outline"}
                         onClick={() => toggleHabit(habit.id, habit.completed, habit.streak)}
-                        className={habit.completed ? "bg-green-500 hover:bg-green-600" : ""}
+                        className={`h-12 w-12 rounded-full shrink-0 ${
+                          habit.completed 
+                            ? "bg-green-500 hover:bg-green-600 border-green-600 shadow-md shadow-green-200" 
+                            : "border-2 hover:border-green-500 hover:text-green-500"
+                        }`}
                       >
-                        {habit.completed ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
-                      </Button>
-                      <div className="flex-1">
-                        <h3 className={`text-lg font-semibold ${habit.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {habit.completed && <Check className="w-6 h-6" />}
+                    </Button>
+                      
+                    {/* Texto e Controles */}
+                    <div className="flex-1 flex flex-col justify-center">
+                      <div className="flex justify-between items-start">
+                        <h3 className={`text-lg font-semibold transition-all ${
+                          habit.completed ? 'line-through text-muted-foreground' : ''
+                        }`}>
                           {habit.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Sequência: {habit.streak} dias
-                        </p>
+
+                        {/* Botão de Excluir */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(habit.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50 -mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      {/* Área da Sequência com Controles Manuais */}
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-sm text-muted-foreground">Sequência:</span>
+                        
+                        <div className="flex items-center bg-secondary/50 rounded-lg p-1 gap-1">
+                          {/* Botão Menos */}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 hover:bg-white hover:shadow-sm"
+                            onClick={(e) => adjustStreak(habit.id, habit.streak, -1, e)}
+                          >
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                          
+                          {/* Número */}
+                          <span className={`text-sm font-bold min-w-[20px] text-center ${habit.streak > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                            {habit.streak}
+                          </span>
+                          
+                          {/* Botão Mais */}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 hover:bg-white hover:shadow-sm"
+                            onClick={(e) => adjustStreak(habit.id, habit.streak, 1, e)}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <span className="text-sm text-muted-foreground">dias</span>
                       </div>
                     </div>
+
                   </div>
                 </CardContent>
               </Card>
