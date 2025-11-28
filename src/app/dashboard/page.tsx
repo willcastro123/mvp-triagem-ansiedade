@@ -142,8 +142,8 @@ export default function DashboardPage() {
   const [chatHistory, setChatHistory] = useState<any[]>([])
   
   const [sellData, setSellData] = useState({
-    originalPrice: 24.90,
-    discountedPrice: 24.90,
+    originalPrice: 34.90,
+    discountedPrice: 22,90,
     buyerEmail: '',
     buyerName: ''
   })
@@ -731,7 +731,7 @@ export default function DashboardPage() {
   const handleDoctorSell = async () => {
     try {
       // Redirecionar diretamente para o link do Keoto
-      const keotoLink = 'https://pay.hotmart.com/P103056552X?bid=1764317135512'
+      const keotoLink = 'https://pay.hotmart.com/P103056552X?off=xfu3cyhr'
       window.location.href = keotoLink
     } catch (error: any) {
       console.error('Erro ao processar pagamento:', error)
