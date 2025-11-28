@@ -1,7 +1,8 @@
 "use client"
 
+import { LogIn, Mail, Lock, Heart, UserPlus, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter,  } from 'next/navigation'
 import { LogIn, Mail, Lock, Heart, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +12,10 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isRegisterMode, setIsRegisterMode] = useState(false)
+  const [showPassword, setShowPassword] = useState(false) // <--- NOVO STATE
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -180,6 +185,45 @@ const handleLogin = async (e: React.FormEvent) => {
 }
 // -----------------------------------------------------------------
 
+// ----------------- NOVA FUNÇÃO handleForgotPassword -----------------
+const handleForgotPassword = async () => {
+  if (!email) {
+    toast.error('Informe seu e-mail', {
+      description: 'Digite o e-mail no campo acima para solicitar a redefinição.'
+    })
+    return
+  }
+
+  setIsLoading(true)
+
+  try {
+    // Supabase envia o link de redefinição para o email cadastrado
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Importante: Substitua /update-password pela sua URL de redefinição de senha
+      redirectTo: `${window.location.origin}/update-password`, 
+    })
+
+    if (error) {
+      console.error('Erro ao solicitar reset:', error)
+      toast.error('Erro ao enviar e-mail', { 
+        description: 'Verifique o e-mail digitado ou tente mais tarde.' 
+      })
+      return
+    }
+
+    toast.success('E-mail de redefinição enviado!', {
+      description: 'Verifique sua caixa de entrada (e spam) para redefinir sua senha.'
+    })
+
+  } catch (error) {
+    console.error('Erro inesperado no reset:', error)
+    toast.error('Ocorreu um erro inesperado.')
+  } finally {
+    setIsLoading(false)
+  }
+}
+// ------------------------------------------------------------------
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-2xl">
@@ -215,23 +259,48 @@ const handleLogin = async (e: React.FormEvent) => {
               </div>
             </div>
 
-            <div className="space-y-2">
+            div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"} // <--- LÓGICA DE VISIBILIDADE APLICADA AQUI
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10" // <-- Adicionado espaço (pr-10) para o ícone
                   required
                   disabled={isLoading}
                 />
+                {/* BOTÃO DO OLHINHO (VISIBILIDADE) */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
               </div>
             </div>
 
+          {/* LINK ESQUECEU SUA SENHA? */}
+            {!isRegisterMode && (
+              <div className="text-right text-sm -mt-2">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={isLoading}
+                  className="text-muted-foreground hover:text-purple-600 transition-colors hover:underline"
+                >
+                  Esqueceu sua senha?
+                </button>
+              </div>
+            )}
+            {/* FIM LINK ESQUECEU SUA SENHA? */}
             <Button
               type="submit"
               disabled={isLoading}
