@@ -63,9 +63,9 @@ export default function LandingPage() {
 
           return {
             id: profile.doctor_id,
-            name: contact?.name || 'Especialista ZentiaMind',
-            specialty: doc?.specialty || 'Saúde Mental',
-            city: contact?.city || 'Atendimento Online',
+            name: contact?.name || 'Venha ser um Especialista Zentia Mind',
+            specialty: doc?.specialty || 'Para psicólogos e psiquiatras',
+            city: contact?.city || 'Atendimento Online e presencial',
             photo_url: profile.photo_url,
             bio: profile.bio
           }
