@@ -731,7 +731,7 @@ export default function DashboardPage() {
   const handleDoctorSell = async () => {
     try {
       // Redirecionar diretamente para o link do Keoto
-      const keotoLink = 'https://checkout.keoto.com/9e473550-9f49-441e-984c-4a5a6ea05a1a'
+      const keotoLink = 'https://pay.hotmart.com/P103056552X?bid=1764317135512'
       window.location.href = keotoLink
     } catch (error: any) {
       console.error('Erro ao processar pagamento:', error)
