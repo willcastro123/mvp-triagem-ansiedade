@@ -30,33 +30,36 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function POST(req: Request) {
-  console.log('\n--- 🚀 INICIANDO WEBHOOK (HOTMART BLINDADO) ---');
+  console.log('\n--- 🚀 INICIANDO WEBHOOK (HOTMART ULTRA BLINDADO) ---');
   
   try {
     // PASSO 1: Recebimento dos dados
     const body = await req.json();
-    console.log('📦 Payload Bruto:', JSON.stringify(body, null, 2)); // Debug Essencial
+    console.log('📦 Payload Bruto:', JSON.stringify(body, null, 2));
 
-    // --- ESTRATÉGIA "BUSCAR EM TUDO" (A Correção do Erro) ---
-    // Tenta achar o EMAIL em vários lugares (raiz, buyer, data.buyer, etc)
+    // --- ESTRATÉGIA "BUSCAR EM TUDO" (ATUALIZADA PARA ASSINATURAS) ---
+    
+    // 1. Tenta achar o EMAIL (Adicionado 'subscriber' para assinaturas)
     const realEmail = 
       body.email || 
       body.buyer?.email || 
       body.data?.buyer?.email || 
+      body.data?.subscriber?.email || // <--- NOVO: Pega email de assinatura
       body.data?.producer?.email;
 
-    // Tenta achar o STATUS em vários lugares
+    // 2. Tenta achar o STATUS
     const rawStatus = 
       body.status || 
       body.event || 
       body.data?.status || 
       'UNKNOWN';
 
-    // Tenta achar o NOME
+    // 3. Tenta achar o NOME (Adicionado 'subscriber' para assinaturas)
     const nome = 
       body.name || 
       body.buyer?.name || 
       body.data?.buyer?.name || 
+      body.data?.subscriber?.name || // <--- NOVO: Pega nome de assinatura
       'Cliente';
 
     console.log(`🔎 Dados Extraídos -> Email: ${realEmail} | Status: ${rawStatus} | Nome: ${nome}`);
@@ -64,21 +67,25 @@ export async function POST(req: Request) {
     // PASSO 2: Validações básicas
     if (!realEmail) {
       console.log('❌ FALHA NO PASSO 2: Email do comprador não encontrado.');
-      return NextResponse.json({ error: 'Sem email do comprador' }, { status: 400 });
+      // Retornamos 200 aqui para a Hotmart parar de tentar enviar se o JSON for inválido
+      return NextResponse.json({ message: 'Email não encontrado, ignorado.' });
     }
 
-    // Lista de status aceitos (Maiúsculo e minúsculo não importam mais)
+    // Lista de status aceitos
     const successKeywords = ['APPROVED', 'COMPLETED', 'CONFIRMED', 'BILLED', 'PURCHASE_APPROVED'];
+    
+    // Verificação de segurança: O status atual é SUBSCRIPTION_CANCELLATION
+    // Se for cancelamento, NÃO devemos criar conta.
     const isApproved = successKeywords.some(keyword => 
       String(rawStatus).toUpperCase().includes(keyword)
     );
     
     if (!isApproved) {
-      console.log(`❌ FALHA NO PASSO 2: Status não aprovado (${rawStatus}). Ignorando.`);
-      return NextResponse.json({ message: 'Pagamento não aprovado (Ignorado)' });
+      console.log(`⚠️ Status não é de aprovação de compra: "${rawStatus}". Ignorando criação de conta.`);
+      return NextResponse.json({ message: 'Status ignorado (não é compra aprovada)' });
     }
     
-    console.log(`2️⃣ Validação OK. Email: ${realEmail} | Status: ${rawStatus}`);
+    console.log(`2️⃣ Validação OK. Compra Aprovada para: ${realEmail}`);
 
     // PASSO 3: Gerar credenciais temporárias
     const randomId = crypto.randomBytes(4).toString('hex');
@@ -123,7 +130,7 @@ export async function POST(req: Request) {
     try {
       await transporter.sendMail({
         from: process.env.SMTP_USER,
-        to: realEmail, // Envia para o email real do cliente
+        to: realEmail,
         subject: 'Acesso Liberado - ZentiaMind',
         html: `
           <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
