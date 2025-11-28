@@ -1,25 +1,28 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
-import crypto from 'crypto'; // Usaremos o crypto nativo do Node.js para gerar strings aleatórias
+import crypto from 'crypto';
 
-// 1. Configurar Supabase com permissão de ADMIN (Service Role)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!, 
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+// 1. Configuração e Verificação das Variáveis
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// 2. Configurar o envio de e-mail
+// Log inicial para garantir que as chaves existem
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('❌ ERRO CRÍTICO: Variáveis de ambiente do Supabase faltando!');
+}
+
+const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
-  secure: true,
+  secure: true, // true para porta 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS || process.env.SMTP_PASSWORD,
@@ -27,105 +30,96 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function POST(req: Request) {
+  console.log('\n--- 🚀 INICIANDO DEBUG DO WEBHOOK ---');
+  
   try {
+    // PASSO 1: Recebimento dos dados
     const body = await req.json();
-    
-    console.log('Webhook Keoto Recebido:', body);
+    console.log('1️⃣ JSON Recebido:', JSON.stringify(body, null, 2));
 
-    // --- LÓGICA DE EXTRAÇÃO DE DADOS (KEOTO) ---
-    // Ajuste conforme o payload real da Keoto se necessário. 
-    // Geralmente vem em body.status e body.customer.email
     const status = body.status || body.payment_status; 
-    
-    // O Email REAL (onde o cliente recebe notificação e comprou)
     const realEmail = body.email || body.customer?.email || body.payer_email;
     const nome = body.name || body.customer?.name || 'Cliente';
 
+    // PASSO 2: Validações básicas
     if (!realEmail) {
-        return NextResponse.json({ message: 'Email do cliente não encontrado no webhook' }, { status: 400 });
+      console.log('❌ FALHA NO PASSO 2: Email não encontrado no JSON recebido.');
+      return NextResponse.json({ error: 'Sem email no JSON' }, { status: 400 });
     }
 
-    // Só processa se estiver pago
     if (status !== 'paid' && status !== 'approved' && status !== 'completed') {
-      return NextResponse.json({ message: 'Pedido não aprovado ainda.' });
+      console.log(`❌ FALHA NO PASSO 2: Status inválido. Recebido: "${status}"`);
+      return NextResponse.json({ message: 'Pagamento não aprovado (Ignorado)' });
     }
+    console.log(`2️⃣ Validação OK. Email: ${realEmail} | Status: ${status}`);
 
-    // 3. Gerar credenciais temporárias (Login e Senha)
+    // PASSO 3: Gerar credenciais
     const randomId = crypto.randomBytes(4).toString('hex');
-    const tempEmail = `acesso_${randomId}@portal.interno`; // Email Falso/Interno para login inicial
-    const tempPassword = crypto.randomBytes(6).toString('hex'); // Senha aleatória
+    const tempEmail = `acesso_${randomId}@portal.interno`;
+    const tempPassword = crypto.randomBytes(6).toString('hex');
+    console.log(`3️⃣ Credenciais Geradas: ${tempEmail}`);
 
-    // 4. Criar o usuário no Supabase Auth (Com o Email TEMPORÁRIO)
+    // PASSO 4: Criar Usuário no Supabase (Auth)
+    console.log('4️⃣ Tentando criar usuário no Supabase Auth...');
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: tempEmail,
       password: tempPassword,
-      email_confirm: true, // Já cria confirmado
+      email_confirm: true,
       user_metadata: { full_name: nome }
     });
 
     if (createError) {
-      console.error('Erro ao criar usuário Auth:', createError);
-      return NextResponse.json({ error: 'Erro ao criar usuário: ' + createError.message }, { status: 400 });
+      console.error('❌ ERRO CRÍTICO NO PASSO 4 (Supabase Auth):', createError.message);
+      return NextResponse.json({ error: 'Erro Auth: ' + createError.message }, { status: 400 });
     }
+    console.log('✅ Usuário Auth criado com ID:', authData.user?.id);
 
-    if (!authData.user) {
-        return NextResponse.json({ error: 'Usuário não retornado pelo Supabase' }, { status: 500 });
-    }
-
-    // 5. CRUCIAL: Salvar o vínculo na tabela 'profiles'
-    // Aqui amarramos o ID do usuário ao Email REAL da compra
+    // PASSO 5: Salvar no Banco de Dados (Tabela Profiles)
+    console.log('5️⃣ Tentando salvar vínculo na tabela Profiles...');
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
-        id: authData.user.id,                // ID gerado no passo anterior
-        email_login: tempEmail,              // O email temporário atual
-        email_compra_original: realEmail,    // O email da Keoto (que nunca muda)
+        id: authData.user?.id,
+        email_login: tempEmail,
+        email_compra_original: realEmail,
         full_name: nome
       });
 
     if (profileError) {
-      console.error('Erro ao criar perfil:', profileError);
-      // Nota: Mesmo se der erro aqui, o usuário foi criado no Auth. 
-      // Idealmente, você trataria isso, mas vamos prosseguir para enviar o email.
+      // Se der erro aqui, a gente avisa mas não para o processo, pois o usuário já foi criado
+      console.error('⚠️ AVISO NO PASSO 5 (Tabela Profile):', profileError.message);
+      console.log('   (Dica: Verifique se a tabela "profiles" existe e se tem as colunas certas)');
+    } else {
+      console.log('✅ Tabela Profiles atualizada com sucesso.');
     }
 
-    // 6. Enviar o E-mail para o endereço REAL
-    const mailOptions = {
-      from: `"Suporte ZentiaMind" <${process.env.SMTP_USER}>`,
-      to: realEmail, // Envia para o email verdadeiro do cliente
-      subject: 'Acesso Liberado - ZentiaMind',
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
-          <h2 style="color: #8b5cf6;">Pagamento Confirmado, ${nome}!</h2>
-          <p>Sua conta foi criada automaticamente. Como medida de segurança, geramos um acesso provisório para você.</p>
-          
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8b5cf6;">
-            <p style="margin: 5px 0;"><strong>📧 Login Provisório:</strong> ${tempEmail}</p>
-            <p style="margin: 5px 0;"><strong>🔑 Senha Provisória:</strong> ${tempPassword}</p>
-          </div>
+    // PASSO 6: Enviar Email via SMTP
+    console.log('6️⃣ Tentando conectar ao SMTP para enviar email...');
+    try {
+      // Tenta enviar
+      await transporter.sendMail({
+        from: process.env.SMTP_USER,
+        to: realEmail, // Envia para o email real
+        subject: 'Teste de Acesso - Debug',
+        html: `
+          <h1>Acesso Liberado</h1>
+          <p>Seu pagamento foi aprovado.</p>
+          <p><strong>Login:</strong> ${tempEmail}</p>
+          <p><strong>Senha:</strong> ${tempPassword}</p>
+          <p>Acesse o perfil e troque seu email.</p>
+        `
+      });
+      console.log('✅ SUCESSO! Email enviado para:', realEmail);
+    } catch (emailError: any) {
+      console.error('❌ ERRO NO PASSO 6 (SMTP):', emailError.message);
+      return NextResponse.json({ error: 'Erro SMTP: ' + emailError.message }, { status: 500 });
+    }
 
-          <p><strong>⚠️ Importante:</strong></p>
-          <ol>
-             <li>Acesse a plataforma com os dados acima.</li>
-             <li>Vá até seu Perfil.</li>
-             <li>Troque o email para este seu email atual (${realEmail}) ou outro de sua preferência.</li>
-          </ol>
-
-          <div style="text-align: center; margin-top: 30px;">
-            <a href="https://zentiamind.com.br/login" style="background: #8b5cf6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                Acessar Plataforma Agora
-            </a>
-          </div>
-        </div>
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    return NextResponse.json({ success: true, message: 'Conta criada e enviada com sucesso' });
+    console.log('--- 🏁 FIM DO PROCESSO COM SUCESSO ---\n');
+    return NextResponse.json({ success: true, message: 'Processo concluído!' });
 
   } catch (error: any) {
-    console.error('Erro no Webhook:', error);
-    return NextResponse.json({ error: error.message || 'Erro interno' }, { status: 500 });
+    console.error('❌ ERRO GERAL NÃO TRATADO:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
