@@ -422,44 +422,50 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCreateUser = async () => {
+const handleCreateUser = async () => {
     try {
       // Validar campos obrigatórios
       if (!formData.name || !formData.email || !formData.password) {
-        alert('Preencha todos os campos obrigatórios');
+        alert('Preencha todos os campos obrigatórios (Nome, Email, Senha)');
         return;
       }
-
-      const { supabase } = await import('@/lib/supabase');
 
       // Gerar código de acesso único
       const accessCode = generateAccessCode();
 
-      // Inserir diretamente na tabela user_profiles
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .insert([{
+      // Feedback visual de carregamento (opcional)
+      // setIsLoading(true); 
+
+      // Chamada para a nossa API Route (Backend)
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          password: formData.password, // Em produção, usar hash
-          city: formData.city || '',
+          password: formData.password,
+          city: formData.city,
           anxiety_type: formData.anxiety_type,
           is_premium: formData.is_premium,
-          access_code: accessCode,
-          triage_completed: false,
-          points: 0
-        }])
-        .select();
+          access_code: accessCode
+        }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      alert(`Usuário criado com sucesso! Código de acesso: ${accessCode}`);
+      if (!response.ok) {
+        throw new Error(data.error || 'Falha ao criar usuário');
+      }
+
+      alert(`Usuário criado com sucesso! Login liberado.\nCódigo de acesso: ${accessCode}`);
       setShowCreateUser(false);
       resetForm();
-      loadData();
+      loadData(); // Recarrega a lista para mostrar o novo usuário
     } catch (error: any) {
       console.error('Erro ao criar usuário:', error);
-      alert('Erro ao criar usuário: ' + error.message);
+      alert('Erro: ' + error.message);
     }
   };
 
